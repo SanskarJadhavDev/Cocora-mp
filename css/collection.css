@@ -1,0 +1,55 @@
+.collection-hero {
+  background: linear-gradient(to bottom right, #4A2683, #1A0F2E);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.collection-hero-inner {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 5rem 1.5rem;
+}
+
+.collection-tag {
+  margin-bottom: 1rem;
+}
+
+.collection-title {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+
+.collection-intro {
+  font-size: 1.125rem;
+  color: rgba(245, 237, 224, 0.8);
+  max-width: 42rem;
+}
+
+.collection-products {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 5rem 1.5rem;
+}
+
+.collection-cta {
+  background-color: #2E1A4F;
+  border-top: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.collection-cta-inner {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 5rem 1.5rem;
+  text-align: center;
+}
+
+.cta-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.cta-text {
+  color: rgba(245, 237, 224, 0.8);
+  margin-bottom: 2rem;
+}
