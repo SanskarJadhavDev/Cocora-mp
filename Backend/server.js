@@ -7,6 +7,7 @@ const productRoutes = require('./routes/productRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const boxRoutes = require('./routes/boxRoutes');
+const giftFinderRoutes = require('./routes/giftFinderRoutes');
 
 const dns = require("dns");
 
@@ -38,6 +39,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/box', boxRoutes);
+app.use('/api/gift-finder', giftFinderRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
