@@ -1,8 +1,16 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import '../css/cart.css'
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import { orderApi } from '../services/api';
+import '../css/cart.css';
 
-export default function Cart({ cart, setCart }) {
+export default function Cart() {
+  const navigate = useNavigate();
+  const { cart, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { user, isAuthenticated } = useAuth();
+
+  const [activeTab, setActiveTab] = useState('cart');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -10,117 +18,287 @@ export default function Cart({ cart, setCart }) {
     address: '',
     city: '',
     pincode: ''
-  })
-  const [errors, setErrors] = useState({})
-  const [checkoutNotice, setCheckoutNotice] = useState('')
+  });
+  const [errors, setErrors] = useState({});
+  const [checkoutNotice, setCheckoutNotice] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [placedOrder, setPlacedOrder] = useState(null);
+  const [myOrders, setMyOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
 
-  const increaseQuantity = (index) => {
-    const updated = [...cart]
-    updated[index] = {
-      ...updated[index],
-      quantity: updated[index].quantity + 1
+  useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name || user.name || '',
+        email: prev.email || user.email || ''
+      }));
     }
-    setCart(updated)
-    localStorage.setItem('cocoraCart', JSON.stringify(updated))
-  }
+  }, [user]);
 
-  const decreaseQuantity = (index) => {
-    const updated = [...cart]
-    if (updated[index].quantity > 1) {
-      updated[index] = {
-        ...updated[index],
-        quantity: updated[index].quantity - 1
+  const loadMyOrders = async () => {
+    if (!isAuthenticated) return;
+    setLoadingOrders(true);
+    try {
+      const response = await orderApi.getMyOrders();
+      if (response && response.data) {
+        setMyOrders(response.data);
       }
-    } else {
-      updated.splice(index, 1)
+    } catch {
+      return;
+    } finally {
+      setLoadingOrders(false);
     }
-    setCart(updated)
-    localStorage.setItem('cocoraCart', JSON.stringify(updated))
-  }
+  };
 
-  const removeItem = (index) => {
-    const updated = cart.filter((_, i) => i !== index)
-    setCart(updated)
-    localStorage.setItem('cocoraCart', JSON.stringify(updated))
-  }
+  useEffect(() => {
+    if (activeTab === 'history' && isAuthenticated) {
+      loadMyOrders();
+    }
+  }, [activeTab, isAuthenticated]);
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: value
-    }))
+    }));
     if (errors[name]) {
       setErrors((prev) => ({
         ...prev,
         [name]: ''
-      }))
+      }));
     }
-  }
+  };
 
   const validate = () => {
-    const newErrors = {}
-    const emailRegex = /^\S+@\S+\.\S+$/
-    const phoneClean = formData.phone.replace(/[\s-]/g, '')
+    const newErrors = {};
+    const emailRegex = /^\S+@\S+\.\S+$/;
+    const phoneClean = formData.phone.replace(/[\s-]/g, '');
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Full name is required'
+      newErrors.name = 'Full name is required';
     }
 
     if (!formData.email.trim()) {
-      newErrors.email = 'Email address is required'
+      newErrors.email = 'Email address is required';
     } else if (!emailRegex.test(formData.email.trim())) {
-      newErrors.email = 'Please enter a valid email address'
+      newErrors.email = 'Please enter a valid email address';
     }
 
     if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required'
+      newErrors.phone = 'Phone number is required';
     } else if (!/^\d{10}$/.test(phoneClean)) {
-      newErrors.phone = 'Please enter a valid 10-digit phone number'
+      newErrors.phone = 'Please enter a valid 10-digit phone number';
     }
 
     if (!formData.address.trim()) {
-      newErrors.address = 'Delivery address is required'
+      newErrors.address = 'Delivery address is required';
     }
 
     if (!formData.city.trim()) {
-      newErrors.city = 'City is required'
+      newErrors.city = 'City is required';
     }
 
     if (!formData.pincode.trim()) {
-      newErrors.pincode = 'PIN code is required'
+      newErrors.pincode = 'PIN code is required';
     } else if (!/^\d{6}$/.test(formData.pincode.trim())) {
-      newErrors.pincode = 'Please enter a valid 6-digit PIN code'
+      newErrors.pincode = 'Please enter a valid 6-digit PIN code';
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    setCheckoutNotice('')
+  const handleCheckoutSubmit = async (e) => {
+    e.preventDefault();
+    setCheckoutNotice('');
 
-    if (!validate()) {
-      return
+    if (!validate() || isSubmitting) {
+      return;
     }
 
-    setCheckoutNotice('Checkout details validated. Ready for order API integration.')
-  }
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: '/cart' } });
+      return;
+    }
 
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const delivery = cart.length === 0 ? 0 : subtotal >= 1000 ? 0 : 50
-  const total = subtotal + delivery
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
+    setIsSubmitting(true);
+
+    try {
+      const payload = {
+        shippingAddress: {
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.replace(/[\s-]/g, ''),
+          address: formData.address.trim(),
+          city: formData.city.trim(),
+          pincode: formData.pincode.trim()
+        },
+        paymentMethod: 'COD'
+      };
+
+      const response = await orderApi.checkout(payload);
+      if (response && response.data) {
+        setPlacedOrder(response.data);
+        await clearCart();
+      }
+    } catch (err) {
+      setCheckoutNotice(err.message || 'Failed to place order. Please review your details.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const getItemId = (item) => {
+    return item.productId || (item.product && item.product._id) || item._id || item.id;
+  };
+
+  const getItemName = (item) => {
+    return (item.product && item.product.name) || item.name || 'Artisanal Chocolate';
+  };
+
+  const getItemPrice = (item) => {
+    return (item.product && item.product.price) || item.price || item.unitPrice || 0;
+  };
+
+  const { items, subtotal, deliveryFee, totalAmount, totalItems } = cart;
 
   return (
     <div>
       <main className="tray-sizes">
         <section>
-          <p className="section-tag">YOUR CART</p>
-          <h1 className="section-title">Your Cocora Box</h1>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div>
+              <p className="section-tag">YOUR CART</p>
+              <h1 className="section-title">Your Cocora Box</h1>
+            </div>
+            {isAuthenticated && (
+              <div className="hero-buttons">
+                <button
+                  type="button"
+                  className={`btn-outline ${activeTab === 'cart' ? 'tray-btn-primary' : ''}`}
+                  onClick={() => setActiveTab('cart')}
+                  style={{ padding: '0.5rem 1.25rem' }}
+                >
+                  Current Cart ({totalItems})
+                </button>
+                <button
+                  type="button"
+                  className={`btn-outline ${activeTab === 'history' ? 'tray-btn-primary' : ''}`}
+                  onClick={() => setActiveTab('history')}
+                  style={{ padding: '0.5rem 1.25rem' }}
+                >
+                  My Orders
+                </button>
+              </div>
+            )}
+          </div>
 
-          {cart.length === 0 ? (
+          {placedOrder ? (
+            <div className="tray-card" style={{ maxWidth: '40rem', margin: '2rem auto', textAlign: 'center' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉</div>
+              <p className="section-tag">ORDER CONFIRMED</p>
+              <h2 className="tray-name" style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>
+                Thank you, {placedOrder.shippingAddress?.name || 'Valued Customer'}!
+              </h2>
+              <p className="build-text">
+                Your order has been placed with Bandra West kitchen.
+              </p>
+              <div style={{ background: '#1A0F2E', padding: '1.5rem', borderRadius: '0.75rem', border: '1px solid rgba(212, 175, 55, 0.3)', margin: '1.5rem 0', textAlign: 'left' }}>
+                <p style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <span style={{ color: 'rgba(245, 237, 224, 0.7)' }}>Order Reference:</span>
+                  <strong style={{ color: '#D4AF37' }}>{placedOrder.orderNumber}</strong>
+                </p>
+                <p style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <span style={{ color: 'rgba(245, 237, 224, 0.7)' }}>Total Amount:</span>
+                  <strong style={{ color: '#D4AF37' }}>₹{placedOrder.totalAmount}</strong>
+                </p>
+                <p style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <span style={{ color: 'rgba(245, 237, 224, 0.7)' }}>Payment Method:</span>
+                  <span>{placedOrder.paymentMethod || 'Cash on Delivery (COD)'}</span>
+                </p>
+                <p style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <span style={{ color: 'rgba(245, 237, 224, 0.7)' }}>Delivery Status:</span>
+                  <span style={{ color: '#D4AF37', fontWeight: 600 }}>{placedOrder.status || 'Pending'}</span>
+                </p>
+                <p style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'rgba(245, 237, 224, 0.7)' }}>Destination:</span>
+                  <span>{placedOrder.shippingAddress?.city}, {placedOrder.shippingAddress?.pincode}</span>
+                </p>
+              </div>
+              <div className="hero-buttons" style={{ justifyContent: 'center' }}>
+                <Link to="/collection" className="btn-primary" onClick={() => setPlacedOrder(null)}>
+                  Explore More Chocolates
+                </Link>
+                {isAuthenticated && (
+                  <button
+                    type="button"
+                    className="btn-outline"
+                    onClick={() => {
+                      setPlacedOrder(null);
+                      setActiveTab('history');
+                    }}
+                  >
+                    View My Orders
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : activeTab === 'history' ? (
+            <div className="tray-card">
+              <h2 className="tray-name">Your Past Orders</h2>
+              <p className="build-text">Track your chocolate orders and delivery status.</p>
+
+              {loadingOrders ? (
+                <p className="build-text">Loading your orders from Cocora...</p>
+              ) : myOrders.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+                  <p className="build-text">You haven't placed any orders yet.</p>
+                  <Link to="/collection" className="btn-primary">Browse Chocolates</Link>
+                </div>
+              ) : (
+                <div className="cart-items-container">
+                  {myOrders.map((ord) => (
+                    <div key={ord._id} className="cart-item-card">
+                      <div className="cart-item-header">
+                        <div>
+                          <p className="product-code">Order #{ord.orderNumber}</p>
+                          <h3 className="product-name">
+                            {new Date(ord.createdAt).toLocaleDateString('en-IN', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric'
+                            })}
+                          </h3>
+                          <p className="product-desc">
+                            {ord.items && ord.items.map((i) => `${i.productName || 'Chocolate'} x${i.quantity}`).join(', ')}
+                          </p>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <p className="product-price">₹{ord.totalAmount}</p>
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              padding: '0.2rem 0.6rem',
+                              borderRadius: '9999px',
+                              backgroundColor: ord.status === 'Delivered' ? 'rgba(80, 200, 120, 0.2)' : 'rgba(212, 175, 55, 0.2)',
+                              color: ord.status === 'Delivered' ? '#50C878' : '#D4AF37',
+                              marginTop: '0.5rem'
+                            }}
+                          >
+                            {ord.status}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : items.length === 0 ? (
             <div id="empty-cart-view" className="tray-card">
               <p className="build-text">Your Cocora box is empty.</p>
               <Link to="/collection" className="btn-primary">Explore Collection</Link>
@@ -129,66 +307,92 @@ export default function Cart({ cart, setCart }) {
             <div id="cart-content-view" className="cart-layout">
               <div className="cart-main-col">
                 <div className="tray-card">
-                  <h2 className="tray-name">Selected Items</h2>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h2 className="tray-name">Selected Items</h2>
+                    <button
+                      type="button"
+                      className="btn-outline"
+                      style={{ padding: '0.35rem 0.85rem', fontSize: '0.8rem' }}
+                      onClick={clearCart}
+                    >
+                      Clear Box
+                    </button>
+                  </div>
                   <p className="build-text">Chocolates tempered in Bandra West, packed for freshness.</p>
                   <div id="cart-items-list" className="cart-items-container">
-                    {cart.map((item, index) => (
-                      <div key={item.id + '-' + index} className="cart-item-card product-card">
-                        <div className="cart-item-header">
-                          <div>
-                            <h3 className="cart-item-title product-name">{item.name}</h3>
-                            {item.chocolates && item.chocolates.length > 0 && (
-                              <p className="cart-item-chocolates product-desc">
-                                Includes: {item.chocolates.join(', ')}
-                              </p>
-                            )}
+                    {items.map((item, index) => {
+                      const itemId = getItemId(item);
+                      const name = getItemName(item);
+                      const price = getItemPrice(item);
+                      const qty = Number(item.quantity) || 1;
+
+                      return (
+                        <div key={`${itemId}-${index}`} className="cart-item-card product-card">
+                          <div className="cart-item-header">
+                            <div>
+                              <h3 className="cart-item-title product-name">{name}</h3>
+                              {item.chocolates && item.chocolates.length > 0 && (
+                                <p className="cart-item-chocolates product-desc">
+                                  Includes: {item.chocolates.join(', ')}
+                                </p>
+                              )}
+                            </div>
+                            <p className="cart-item-price product-price">₹{price * qty}</p>
                           </div>
-                          <p className="cart-item-price product-price">₹{item.price}</p>
-                        </div>
-                        <div className="cart-item-footer">
-                          <div className="cart-controls-row hero-buttons">
+                          <div className="cart-item-footer">
+                            <div className="cart-controls-row hero-buttons">
+                              <button
+                                type="button"
+                                className="btn-outline qty-control-btn"
+                                onClick={() => updateQuantity(itemId, qty - 1)}
+                                aria-label="Decrease quantity"
+                              >
+                                -
+                              </button>
+                              <span className="btn-outline qty-badge">{qty}</span>
+                              <button
+                                type="button"
+                                className="btn-outline qty-control-btn"
+                                onClick={() => updateQuantity(itemId, qty + 1)}
+                                aria-label="Increase quantity"
+                              >
+                                +
+                              </button>
+                            </div>
                             <button
                               type="button"
-                              className="btn-outline qty-control-btn"
-                              onClick={() => decreaseQuantity(index)}
-                              aria-label="Decrease quantity"
+                              className="btn-outline remove-item-btn"
+                              onClick={() => removeFromCart(itemId)}
                             >
-                              -
-                            </button>
-                            <span className="btn-outline qty-badge">{item.quantity}</span>
-                            <button
-                              type="button"
-                              className="btn-outline qty-control-btn"
-                              onClick={() => increaseQuantity(index)}
-                              aria-label="Increase quantity"
-                            >
-                              +
+                              Remove
                             </button>
                           </div>
-                          <button
-                            type="button"
-                            className="btn-outline remove-item-btn"
-                            onClick={() => removeItem(index)}
-                          >
-                            Remove
-                          </button>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
                 <div className="tray-card">
-                  <h2 className="tray-name">Checkout Details</h2>
-                  <p className="build-text">Provide your delivery location for refrigerated delivery.</p>
+                  <h2 className="tray-name">Delivery & Contact Details</h2>
+                  <p className="build-text">Provide your destination for refrigerated temperature-controlled dispatch.</p>
+
+                  {!isAuthenticated && (
+                    <div className="checkout-ready-notice" style={{ background: 'rgba(212, 175, 55, 0.15)', borderColor: '#D4AF37', marginBottom: '1.5rem' }}>
+                      <span>Already have an account? </span>
+                      <Link to="/login" state={{ from: '/cart' }} style={{ color: '#D4AF37', fontWeight: 600, textDecoration: 'underline' }}>
+                        Sign in for faster checkout
+                      </Link>
+                    </div>
+                  )}
 
                   {checkoutNotice && (
-                    <div className="checkout-ready-notice">
+                    <div className="checkout-ready-notice" style={{ marginBottom: '1.5rem', color: '#E06C75' }}>
                       {checkoutNotice}
                     </div>
                   )}
 
-                  <form id="checkout-form" onSubmit={handleSubmit} noValidate>
+                  <form id="checkout-form" onSubmit={handleCheckoutSubmit} noValidate>
                     <div className="checkout-fields-grid">
                       <div className="checkout-field field-span-2">
                         <label htmlFor="name" className="checkout-label">Full Name</label>
@@ -279,8 +483,12 @@ export default function Cart({ cart, setCart }) {
                       {Object.keys(errors).length > 0 && 'Please correct the highlighted fields above.'}
                     </p>
 
-                    <button type="submit" className="btn-primary checkout-submit-btn">
-                      Place Order
+                    <button
+                      type="submit"
+                      className="btn-primary checkout-submit-btn"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? 'Placing Order...' : (isAuthenticated ? 'Place Order (Cash on Delivery)' : 'Sign In to Complete Order')}
                     </button>
                   </form>
                 </div>
@@ -298,8 +506,8 @@ export default function Cart({ cart, setCart }) {
 
                   <div className="summary-row">
                     <span>Delivery</span>
-                    <span id="delivery-display" className={delivery === 0 ? 'summary-badge-free' : ''}>
-                      {delivery === 0 ? 'FREE' : `₹${delivery}`}
+                    <span id="delivery-display" className={deliveryFee === 0 ? 'summary-badge-free' : ''}>
+                      {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}
                     </span>
                   </div>
 
@@ -307,14 +515,14 @@ export default function Cart({ cart, setCart }) {
 
                   <div className="summary-total-row">
                     <span className="summary-total-label">Total Amount</span>
-                    <span id="total-display" className="summary-total-amount">₹{total}</span>
+                    <span id="total-display" className="summary-total-amount">₹{totalAmount}</span>
                   </div>
                 </div>
 
                 <div className="summary-perks">
                   <p>• Dispatched from Bandra West within 24 hours</p>
                   <p>• Temperature-controlled cold packaging included</p>
-                  <p>• Hand-written card with every order</p>
+                  <p>• Free delivery on all orders ₹1,000 and above</p>
                 </div>
               </div>
             </div>
@@ -355,5 +563,5 @@ export default function Cart({ cart, setCart }) {
         </div>
       </footer>
     </div>
-  )
+  );
 }

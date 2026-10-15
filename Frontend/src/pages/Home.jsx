@@ -1,7 +1,38 @@
-import { Link } from 'react-router-dom'
-import '../css/home.css'
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { productApi } from '../services/api';
+import { useCart } from '../context/CartContext';
+import '../css/home.css';
 
 export default function Home() {
+  const { addToCart } = useCart();
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [addedNotice, setAddedNotice] = useState('');
+
+  useEffect(() => {
+    const fetchFeatured = async () => {
+      try {
+        const response = await productApi.getFeatured();
+        if (response && response.data) {
+          setFeaturedProducts(response.data.slice(0, 3));
+        }
+      } catch {
+        return;
+      }
+    };
+    fetchFeatured();
+  }, []);
+
+  const handleAddToCart = async (product) => {
+    const res = await addToCart(product, 1);
+    if (res && res.success) {
+      setAddedNotice(`Added "${product.name}" to your cart!`);
+      setTimeout(() => {
+        setAddedNotice('');
+      }, 2500);
+    }
+  };
+
   return (
     <div>
       <section className="hero">
@@ -22,7 +53,7 @@ export default function Home() {
             </div>
             <div className="hero-stats">
               <div>
-                <p className="stat-value">12</p>
+                <p className="stat-value">60</p>
                 <p className="stat-label">Flavours</p>
               </div>
               <div>
@@ -38,6 +69,56 @@ export default function Home() {
         </div>
       </section>
 
+      {featuredProducts.length > 0 && (
+        <section className="collection-preview">
+          <div className="section-header">
+            <div>
+              <p className="section-tag">KITCHEN HIGHLIGHTS</p>
+              <h2 className="section-title">Seasonal Signatures</h2>
+            </div>
+            <Link to="/collection" className="view-all-link">
+              View all 60 chocolates &rarr;
+            </Link>
+          </div>
+
+          {addedNotice && (
+            <div className="auth-notice" style={{ marginBottom: '2rem', textAlign: 'center' }}>
+              {addedNotice}
+            </div>
+          )}
+
+          <div className="product-grid">
+            {featuredProducts.map((product) => (
+              <article key={product._id} className="product-card">
+                <div className="product-image" style={{ padding: 0, height: '220px', overflow: 'hidden' }}>
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                </div>
+                <div className="product-info">
+                  <p className="product-code">{product.category}</p>
+                  <h3 className="product-name">{product.name}</h3>
+                  <p className="product-desc">{product.description}</p>
+                  <div className="product-footer">
+                    <span className="product-price">₹{product.price}</span>
+                    <button
+                      type="button"
+                      className="add-btn"
+                      onClick={() => handleAddToCart(product)}
+                      title="Add to cart"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section id="trays" className="tray-sizes">
         <p className="section-tag">TRAY SIZES</p>
         <h2 className="section-title tray-sizes-title">Three trays. Same chocolate.</h2>
@@ -52,7 +133,7 @@ export default function Home() {
               <li>Kraft sleeve, wax seal</li>
               <li>Handwritten note card</li>
             </ul>
-            <Link to="/collection" className="tray-btn">Choose tray 6</Link>
+            <Link to="/build?tray=6" className="tray-btn">Choose tray 6</Link>
           </div>
 
           <div className="tray-card tray-card-featured">
@@ -66,7 +147,7 @@ export default function Home() {
               <li>Letterpressed card, your message</li>
               <li>Cold pack April to June</li>
             </ul>
-            <Link to="/collection" className="tray-btn tray-btn-primary">Choose tray 12</Link>
+            <Link to="/build?tray=12" className="tray-btn tray-btn-primary">Choose tray 12</Link>
           </div>
 
           <div className="tray-card">
@@ -78,7 +159,7 @@ export default function Home() {
               <li>Rigid box with ribbon pull</li>
               <li>Free delivery inside Mumbai</li>
             </ul>
-            <Link to="/collection" className="tray-btn">Choose tray 24</Link>
+            <Link to="/build?tray=24" className="tray-btn">Choose tray 24</Link>
           </div>
         </div>
       </section>
@@ -116,5 +197,5 @@ export default function Home() {
         </div>
       </footer>
     </div>
-  )
+  );
 }

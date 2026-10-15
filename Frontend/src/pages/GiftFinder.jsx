@@ -1,75 +1,85 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import '../css/gift-finder.css'
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { giftFinderApi } from '../services/api';
+import { useCart } from '../context/CartContext';
+import '../css/gift-finder.css';
 
 export default function GiftFinder() {
-  const [stage, setStage] = useState('intro')
-  const [step, setStep] = useState(1)
-  const [recipient, setRecipient] = useState('')
-  const [occasion, setOccasion] = useState('')
-  const [mood, setMood] = useState('')
-  const [result, setResult] = useState(null)
+  const { addToCart } = useCart();
+  const [stage, setStage] = useState('intro');
+  const [step, setStep] = useState(1);
+  const [recipient, setRecipient] = useState('');
+  const [occasion, setOccasion] = useState('');
+  const [mood, setMood] = useState('');
+  const [dietary, setDietary] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [recommendations, setRecommendations] = useState([]);
+  const [emptySuggestions, setEmptySuggestions] = useState([]);
+  const [addedNotice, setAddedNotice] = useState('');
 
   const handleStart = () => {
-    setStage('quiz')
-    setStep(1)
-  }
+    setStage('quiz');
+    setStep(1);
+  };
 
-  const handleFinish = () => {
-    let name = ''
-    let desc = ''
-    let price = ''
-    let link = ''
-    let code = ''
-    let visualClass = ''
+  const handleFinish = async () => {
+    setLoading(true);
+    setError('');
+    setStage('result');
 
-    if (recipient === 'Partner' && occasion === 'Anniversary' && mood === 'Classic') {
-      name = 'Ivory Cardamom'
-      desc = 'White chocolate, green cardamom ground the same day.'
-      price = '₹190'
-      link = '/build?product=ivory-cardamom'
-      code = 'CCR-03'
-      visualClass = 'choco-3'
-    } else if (recipient === 'Friend' && occasion === 'Birthday' && mood === 'Playful') {
-      name = 'Ember'
-      desc = 'Dark ganache cut with Kashmiri chilli. Heat arrives late.'
-      price = '₹180'
-      link = '/build?product=ember'
-      code = 'CCR-02'
-      visualClass = 'choco-2'
-    } else if (recipient === 'Colleague' && occasion === 'Thank You' && mood === 'Bold') {
-      name = 'Obsidian'
-      desc = '72% dark, flaked sea salt, a long bitter finish.'
-      price = '₹200'
-      link = '/build?product=obsidian'
-      code = 'CCR-01'
-      visualClass = 'choco-1'
-    } else {
-      name = 'Cocora Signature Box'
-      desc = 'A curated selection of Cocora chocolates that makes gifting easy.'
-      price = '₹1699'
-      link = '/build?product=signature-box'
-      code = 'CCR-BOX-12'
-      visualClass = 'choco-signature'
+    try {
+      const payload = {
+        recipient,
+        occasion,
+        mood,
+        limit: 4
+      };
+      if (dietary && dietary !== 'None') {
+        payload.dietaryRequirements = [dietary];
+      }
+
+      const response = await giftFinderApi.recommend(payload);
+      if (response && response.recommendations) {
+        setRecommendations(response.recommendations);
+        if (response.count === 0 && response.suggestions) {
+          setEmptySuggestions(response.suggestions);
+        }
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to generate recommendations. Please try again.');
+    } finally {
+      setLoading(false);
     }
-
-    setResult({ name, desc, price, link, code, visualClass })
-    setStage('result')
-  }
+  };
 
   const resetQuiz = () => {
-    setRecipient('')
-    setOccasion('')
-    setMood('')
-    setStep(1)
-    setStage('quiz')
-  }
+    setRecipient('');
+    setOccasion('');
+    setMood('');
+    setDietary('');
+    setStep(1);
+    setRecommendations([]);
+    setEmptySuggestions([]);
+    setError('');
+    setStage('quiz');
+  };
 
   const getProgressText = () => {
-    if (step === 1) return '01 / 03'
-    if (step === 2) return '02 / 03'
-    return '03 / 03'
-  }
+    if (step === 1) return '01 / 03';
+    if (step === 2) return '02 / 03';
+    return '03 / 03';
+  };
+
+  const handleAddToCart = async (rec) => {
+    const res = await addToCart(rec.productId, 1);
+    if (res && res.success) {
+      setAddedNotice(`Added "${rec.name}" to your cart!`);
+      setTimeout(() => {
+        setAddedNotice('');
+      }, 2500);
+    }
+  };
 
   return (
     <div>
@@ -77,12 +87,14 @@ export default function GiftFinder() {
         <div className="finder-container">
           {stage === 'intro' && (
             <section id="intro-section" className="finder-intro">
-              <p className="section-tag">GIFT FINDER</p>
+              <p className="section-tag">INTELLIGENT GIFT FINDER</p>
               <h1 className="intro-title">
                 Not sure what to gift?<br />
                 <span className="intro-highlight">We'll find the sweet spot.</span>
               </h1>
-              <p className="intro-desc">Answer three quick questions and we'll match you with a Cocora gift.</p>
+              <p className="intro-desc">
+                Answer three quick questions about the recipient, occasion, and flavour preference. Our engine matches real artisanal chocolates tempered fresh in Bandra West.
+              </p>
               <button
                 type="button"
                 id="start-btn"
@@ -116,7 +128,7 @@ export default function GiftFinder() {
                         Friend: '✨',
                         Family: '🌿',
                         Colleague: '🤝'
-                      }
+                      };
                       return (
                         <button
                           key={item}
@@ -131,7 +143,7 @@ export default function GiftFinder() {
                             <span className="option-title">{item}</span>
                           </span>
                         </button>
-                      )
+                      );
                     })}
                   </div>
                   <div className="quiz-actions">
@@ -201,10 +213,10 @@ export default function GiftFinder() {
                   <h2 className="quiz-question">What's their chocolate mood?</h2>
                   <div className="options-grid options-grid-2">
                     {[
-                      { val: 'Bold', desc: 'Dark, intense & sophisticated' },
-                      { val: 'Classic', desc: 'Smooth, creamy & familiar' },
-                      { val: 'Playful', desc: 'Sweet with something unexpected' },
-                      { val: 'Surprise me', desc: 'You choose. We trust you.' }
+                      { val: 'Bold', desc: 'Dark, intense single-origin (65–85%)' },
+                      { val: 'Classic', desc: 'Silky milk chocolate & sweet cream' },
+                      { val: 'Playful', desc: 'Fruit, floral & unexpected Indian spices' },
+                      { val: 'Surprise me', desc: 'Curated selection from kitchen favourites' }
                     ].map((item) => (
                       <button
                         key={item.val}
@@ -221,7 +233,25 @@ export default function GiftFinder() {
                       </button>
                     ))}
                   </div>
-                  <div className="quiz-actions quiz-actions-split">
+
+                  <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(212, 175, 55, 0.2)' }}>
+                    <p className="section-tag" style={{ marginBottom: '0.75rem' }}>OPTIONAL DIETARY PREFERENCE</p>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {['None', 'Vegan', 'Gluten-Free', 'Sugar-Free', 'Dairy-Free'].map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          className={`category-tab ${(dietary === d || (!dietary && d === 'None')) ? 'active' : ''}`}
+                          style={{ fontSize: '0.8rem', padding: '0.35rem 0.85rem' }}
+                          onClick={() => setDietary(d === 'None' ? '' : d)}
+                        >
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="quiz-actions quiz-actions-split" style={{ marginTop: '2rem' }}>
                     <button
                       type="button"
                       id="back-3"
@@ -237,7 +267,7 @@ export default function GiftFinder() {
                       disabled={!mood}
                       onClick={handleFinish}
                     >
-                      Find my gift &rarr;
+                      Find my gifts &rarr;
                     </button>
                   </div>
                 </div>
@@ -245,54 +275,130 @@ export default function GiftFinder() {
             </section>
           )}
 
-          {stage === 'result' && result && (
+          {stage === 'result' && (
             <section id="result-section" className="result-section">
               <div className="result-header">
-                <p className="section-tag">CURATED MATCH</p>
-                <h2 className="result-title">We found their kind of chocolate.</h2>
+                <p className="section-tag">CURATED KITCHEN MATCHES</p>
+                <h2 className="result-title">Chocolates tailored to your gift</h2>
               </div>
 
-              <div className="result-card">
-                <div id="result-image-wrapper" className={`product-image ${result.visualClass}`}>
-                  <div className="chocolate-tray">
-                    <div className="chocolate-piece"></div>
-                    <div className="chocolate-piece"></div>
-                    <div className="chocolate-piece"></div>
-                    <div className="chocolate-piece"></div>
-                    <div className="chocolate-piece"></div>
-                    <div className="chocolate-piece"></div>
-                    <div className="chocolate-piece"></div>
-                    <div className="chocolate-piece"></div>
-                    <div className="chocolate-piece"></div>
-                  </div>
+              {addedNotice && (
+                <div className="auth-notice" style={{ marginBottom: '2rem', textAlign: 'center' }}>
+                  {addedNotice}
                 </div>
-                <div className="result-content">
-                  <p id="result-code" className="product-code">{result.code}</p>
-                  <h3 id="result-name" className="result-product-name">{result.name}</h3>
-                  <p id="result-desc" className="result-product-desc">{result.desc}</p>
-                  <p id="result-price" className="result-product-price">{result.price}</p>
-                  <div className="result-action-bar">
-                    <Link
-                      id="result-build-link"
-                      to={result.link}
-                      className="btn-primary"
+              )}
+
+              {loading ? (
+                <div className="finder-intro" style={{ padding: '3rem' }}>
+                  <p className="section-title" style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>
+                    Searching 60 artisanal chocolates...
+                  </p>
+                  <p className="intro-desc" style={{ marginBottom: 0 }}>
+                    Matching recipient occasion, cocoa percentage, and flavour notes against active kitchen stock.
+                  </p>
+                </div>
+              ) : error ? (
+                <div className="finder-intro" style={{ padding: '3rem' }}>
+                  <p className="section-title" style={{ fontSize: '1.5rem', color: '#E06C75', marginBottom: '1rem' }}>
+                    {error}
+                  </p>
+                  <button type="button" className="btn-primary" onClick={resetQuiz}>
+                    Try Again
+                  </button>
+                </div>
+              ) : recommendations.length === 0 ? (
+                <div className="finder-intro" style={{ padding: '3rem' }}>
+                  <p className="section-title" style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>
+                    No chocolates matched all criteria
+                  </p>
+                  {emptySuggestions.length > 0 && (
+                    <ul style={{ textAlign: 'left', maxWidth: '30rem', margin: '1rem auto 2rem', color: 'rgba(245, 237, 224, 0.8)' }}>
+                      {emptySuggestions.map((s, idx) => (
+                        <li key={idx} style={{ marginBottom: '0.5rem' }}>• {s}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <button type="button" className="btn-primary" onClick={resetQuiz}>
+                    Adjust Preferences
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                  {recommendations.map((rec) => (
+                    <div key={rec.productId} className="result-card">
+                      <div className="product-image" style={{ padding: 0, overflow: 'hidden' }}>
+                        <img
+                          src={rec.image}
+                          alt={rec.name}
+                          style={{ width: '100%', height: '100%', minHeight: '260px', objectFit: 'cover' }}
+                        />
+                      </div>
+                      <div className="result-content">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <p className="product-code">{rec.category}</p>
+                          <span
+                            style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              background: 'rgba(212, 175, 55, 0.2)',
+                              color: '#D4AF37',
+                              padding: '0.25rem 0.6rem',
+                              borderRadius: '9999px',
+                              border: '1px solid #D4AF37'
+                            }}
+                          >
+                            {rec.matchPercentage}% MATCH
+                          </span>
+                        </div>
+                        <h3 className="result-product-name">{rec.name}</h3>
+                        <p className="result-product-desc">{rec.description}</p>
+
+                        {rec.matchReasons && rec.matchReasons.length > 0 && (
+                          <div style={{ background: '#1A0F2E', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem', border: '1px solid rgba(212, 175, 55, 0.2)' }}>
+                            <p style={{ fontSize: '0.75rem', color: '#D4AF37', fontWeight: 600, letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+                              WHY IT'S A MATCH:
+                            </p>
+                            <ul style={{ fontSize: '0.85rem', color: 'rgba(245, 237, 224, 0.85)', lineHeight: 1.5 }}>
+                              {rec.matchReasons.map((reason, idx) => (
+                                <li key={idx} style={{ marginBottom: '0.25rem' }}>✓ {reason}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        <p className="result-product-price">₹{rec.price}</p>
+
+                        <div className="hero-buttons">
+                          <button
+                            type="button"
+                            className="btn-primary"
+                            onClick={() => handleAddToCart(rec)}
+                          >
+                            Add to Cart +
+                          </button>
+                          <Link
+                            to={`/build?product=${rec.productId}`}
+                            className="btn-outline"
+                          >
+                            Build into Box &rarr;
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="result-reset-wrapper" style={{ textAlign: 'center', marginTop: '1rem' }}>
+                    <button
+                      type="button"
+                      id="try-again-btn"
+                      className="try-again-btn"
+                      onClick={resetQuiz}
                     >
-                      Build this box &rarr;
-                    </Link>
+                      Not quite right? Try again
+                    </button>
                   </div>
                 </div>
-              </div>
-
-              <div className="result-reset-wrapper">
-                <button
-                  type="button"
-                  id="try-again-btn"
-                  className="try-again-btn"
-                  onClick={resetQuiz}
-                >
-                  Not quite right? Try again
-                </button>
-              </div>
+              )}
             </section>
           )}
         </div>
@@ -331,5 +437,5 @@ export default function GiftFinder() {
         </div>
       </footer>
     </div>
-  )
+  );
 }

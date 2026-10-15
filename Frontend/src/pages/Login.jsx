@@ -1,11 +1,17 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import '../css/login.css'
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import '../css/login.css';
 
 export default function Login() {
-  const [isRegister, setIsRegister] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login, register, isAuthenticated, isAdmin } = useAuth();
+
+  const [isRegister, setIsRegister] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -13,79 +19,110 @@ export default function Login() {
     password: '',
     confirmPassword: '',
     rememberMe: false
-  })
+  });
 
-  const [errors, setErrors] = useState({})
-  const [statusNotice, setStatusNotice] = useState('')
+  const [errors, setErrors] = useState({});
+  const [statusNotice, setStatusNotice] = useState('');
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (isAdmin) {
+        navigate('/admin', { replace: true });
+      } else {
+        const from = location.state?.from || '/';
+        navigate(from, { replace: true });
+      }
+    }
+  }, [isAuthenticated, isAdmin, navigate, location.state]);
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target
+    const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
-    }))
+    }));
     if (errors[name]) {
       setErrors((prev) => ({
         ...prev,
         [name]: ''
-      }))
+      }));
     }
-  }
+  };
 
   const validate = () => {
-    const newErrors = {}
-    const emailRegex = /^\S+@\S+\.\S+$/
+    const newErrors = {};
+    const emailRegex = /^\S+@\S+\.\S+$/;
 
     if (isRegister) {
       if (!formData.name.trim()) {
-        newErrors.name = 'Full name is required'
+        newErrors.name = 'Full name is required';
       }
     }
 
     if (!formData.email.trim()) {
-      newErrors.email = 'Email address is required'
+      newErrors.email = 'Email address is required';
     } else if (!emailRegex.test(formData.email.trim())) {
-      newErrors.email = 'Please enter a valid email address'
+      newErrors.email = 'Please enter a valid email address';
     }
 
     if (!formData.password) {
-      newErrors.password = 'Password is required'
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters'
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters long';
     }
 
     if (isRegister) {
       if (!formData.confirmPassword) {
-        newErrors.confirmPassword = 'Please confirm your password'
+        newErrors.confirmPassword = 'Please confirm your password';
       } else if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = 'Passwords do not match'
+        newErrors.confirmPassword = 'Passwords do not match';
       }
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    setStatusNotice('')
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setStatusNotice('');
 
-    if (!validate()) {
-      return
+    if (!validate() || isSubmitting) {
+      return;
     }
 
-    if (isRegister) {
-      setStatusNotice('Registration form validated. Backend API not yet implemented.')
-    } else {
-      setStatusNotice('Login credentials validated. Backend API not yet implemented.')
+    setIsSubmitting(true);
+
+    try {
+      if (isRegister) {
+        const user = await register(formData.name.trim(), formData.email.trim(), formData.password);
+        if (user && user.role === 'admin') {
+          navigate('/admin', { replace: true });
+        } else {
+          const from = location.state?.from || '/';
+          navigate(from, { replace: true });
+        }
+      } else {
+        const user = await login(formData.email.trim(), formData.password);
+        if (user && user.role === 'admin') {
+          navigate('/admin', { replace: true });
+        } else {
+          const from = location.state?.from || '/';
+          navigate(from, { replace: true });
+        }
+      }
+    } catch (err) {
+      setStatusNotice(err.message || 'Authentication failed. Please verify your details.');
+    } finally {
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const switchMode = (registerMode) => {
-    setIsRegister(registerMode)
-    setErrors({})
-    setStatusNotice('')
-  }
+    setIsRegister(registerMode);
+    setErrors({});
+    setStatusNotice('');
+  };
 
   return (
     <div>
@@ -103,7 +140,7 @@ export default function Login() {
             </div>
 
             {statusNotice && (
-              <div className="auth-notice">
+              <div className="auth-notice" style={{ marginBottom: '1.25rem' }}>
                 {statusNotice}
               </div>
             )}
@@ -120,6 +157,7 @@ export default function Login() {
                     placeholder="Aditya Sharma"
                     value={formData.name}
                     onChange={handleChange}
+                    disabled={isSubmitting}
                   />
                   {errors.name && <span className="field-error-text">{errors.name}</span>}
                 </div>
@@ -135,6 +173,7 @@ export default function Login() {
                   placeholder="name@example.com"
                   value={formData.email}
                   onChange={handleChange}
+                  disabled={isSubmitting}
                 />
                 {errors.email && <span className="field-error-text">{errors.email}</span>}
               </div>
@@ -147,9 +186,10 @@ export default function Login() {
                     id="auth-password"
                     name="password"
                     className={`auth-input ${errors.password ? 'auth-input-error' : ''}`}
-                    placeholder="Enter password"
+                    placeholder="At least 8 characters"
                     value={formData.password}
                     onChange={handleChange}
+                    disabled={isSubmitting}
                   />
                   <button
                     type="button"
@@ -174,6 +214,7 @@ export default function Login() {
                       placeholder="Repeat password"
                       value={formData.confirmPassword}
                       onChange={handleChange}
+                      disabled={isSubmitting}
                     />
                     <button
                       type="button"
@@ -211,8 +252,14 @@ export default function Login() {
                 </div>
               )}
 
-              <button type="submit" className="btn-primary auth-submit-btn">
-                {isRegister ? 'Create Account' : 'Login'}
+              <button
+                type="submit"
+                className="btn-primary auth-submit-btn"
+                disabled={isSubmitting}
+              >
+                {isSubmitting
+                  ? (isRegister ? 'Creating Account...' : 'Logging in...')
+                  : (isRegister ? 'Create Account' : 'Login')}
               </button>
             </form>
 
@@ -278,5 +325,5 @@ export default function Login() {
         </div>
       </footer>
     </div>
-  )
+  );
 }

@@ -1,105 +1,299 @@
-import { Link } from 'react-router-dom'
-import '../css/collection.css'
+import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { productApi } from '../services/api';
+import { useCart } from '../context/CartContext';
+import '../css/collection.css';
 
-const chocolates = [
-  { num: 1, code: 'CCR-01', name: 'Obsidian', price: 180, desc: '72% dark, flaked sea salt, a long bitter finish.' },
-  { num: 2, code: 'CCR-02', name: 'Ember', price: 200, desc: 'Dark ganache cut with Kashmiri chilli. Heat arrives late.' },
-  { num: 3, code: 'CCR-03', name: 'Ivory Cardamom', price: 190, desc: 'White chocolate, green cardamom ground the same day.' },
-  { num: 4, code: 'CCR-04', name: 'Malabar', price: 210, desc: 'Milk chocolate over cold-brewed Coorg coffee.' },
-  { num: 5, code: 'CCR-05', name: 'Kashmir Rose', price: 220, desc: 'Rose water, crushed pistachio, a thin dark shell.' },
-  { num: 6, code: 'CCR-06', name: 'Burnt Caramel', price: 195, desc: 'Sugar taken past amber, stopped with cream and salt.' },
-  { num: 7, code: 'CCR-07', name: 'Alphonso', price: 230, desc: 'Ratnagiri mango folded into white ganache. April to June only.' },
-  { num: 8, code: 'CCR-08', name: 'Midnight Orange', price: 185, desc: 'Candied peel, dark shell, a bitter edge on the back end.' },
-  { num: 9, code: 'CCR-09', name: 'Hazelnut Praline', price: 200, desc: 'Roasted hazelnut ground to a paste, nothing else added.' },
-  { num: 10, code: 'CCR-10', name: 'Kesar', price: 250, desc: 'Kashmiri saffron bloomed in cream. The expensive one.' },
-  { num: 11, code: 'CCR-11', name: 'Coconut Kokum', price: 190, desc: 'Toasted coconut against sour kokum. Divides the room.' },
-  { num: 12, code: 'CCR-12', name: 'Garden Mint', price: 215, desc: 'Fresh mint steeped in cream overnight, never extract.' }
-]
+const APPROVED_CATEGORIES = [
+  'Milk Chocolate',
+  'Dark Chocolate',
+  'White Chocolate',
+  'Zero Sugar',
+  'Nuts & Praline',
+  'Fruit & Floral',
+  'Indian & Experimental'
+];
 
-export default function Collection({ cart, setCart }) {
-  const handleAddToCart = (product) => {
-    const id = product.name.toLowerCase().replace(/ /g, '-')
-    const currentCart = [...cart]
-    let found = false
+export default function Collection() {
+  const { addToCart } = useCart();
+  const [products, setProducts] = useState([]);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    limit: 8,
+    totalProducts: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortOption, setSortOption] = useState('featured');
+  const [categoriesData, setCategoriesData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [addedNotice, setAddedNotice] = useState('');
 
-    for (let i = 0; i < currentCart.length; i++) {
-      if (currentCart[i].id === id) {
-        currentCart[i] = {
-          ...currentCart[i],
-          quantity: currentCart[i].quantity + 1
-        }
-        found = true
-        break
+  const fetchCategories = async () => {
+    try {
+      const response = await productApi.getCategories();
+      if (response && response.data) {
+        setCategoriesData(response.data);
       }
+    } catch {
+      return;
     }
+  };
 
-    if (!found) {
-      currentCart.push({
-        id: id,
-        name: product.name,
-        price: product.price,
-        quantity: 1
-      })
+  const fetchProducts = useCallback(async (page = 1) => {
+    setLoading(true);
+    setError('');
+    try {
+      const params = {
+        page,
+        limit: 8,
+        sort: sortOption
+      };
+      if (selectedCategory) {
+        params.category = selectedCategory;
+      }
+      if (searchTerm.trim()) {
+        params.search = searchTerm.trim();
+      }
+
+      const response = await productApi.getProducts(params);
+      if (response && response.data) {
+        setProducts(response.data);
+        if (response.pagination) {
+          setPagination(response.pagination);
+        }
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to load chocolates.');
+    } finally {
+      setLoading(false);
     }
+  }, [selectedCategory, searchTerm, sortOption]);
 
-    setCart(currentCart)
-    localStorage.setItem('cocoraCart', JSON.stringify(currentCart))
-  }
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    fetchProducts(1);
+  }, [fetchProducts]);
+
+  const handleCategoryChange = (category) => {
+    setSelectedCategory(category);
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    fetchProducts(1);
+  };
+
+  const handlePageChange = (newPage) => {
+    fetchProducts(newPage);
+    window.scrollTo({ top: 300, behavior: 'smooth' });
+  };
+
+  const handleAddToCart = async (product) => {
+    const res = await addToCart(product, 1);
+    if (res && res.success) {
+      setAddedNotice(`Added "${product.name}" to your cart!`);
+      setTimeout(() => {
+        setAddedNotice('');
+      }, 2500);
+    }
+  };
 
   return (
     <div>
       <section className="collection-hero">
         <div className="collection-hero-inner">
           <p className="section-tag collection-tag">THE COLLECTION</p>
-          <h1 className="collection-title">Twelve chocolates, rotated by season</h1>
+          <h1 className="collection-title">Sixty artisanal chocolates, tempered by season</h1>
           <p className="collection-intro">
-            Tasting notes are written by whoever rolled the batch, which is why they
-            read the way they do. Prices are per piece.
+            Handcrafted in Bandra West with single-origin Indian and global cocoa. Explore our full catalogue across seven distinct styles.
           </p>
         </div>
       </section>
 
       <section className="collection-products">
-        <div className="product-grid">
-          {chocolates.map((choco) => (
-            <article key={choco.code} className={`product-card choco-${choco.num}`}>
-              <div className="product-image">
-                <div className="chocolate-tray">
-                  <div className="chocolate-piece"></div>
-                  <div className="chocolate-piece"></div>
-                  <div className="chocolate-piece"></div>
-                  <div className="chocolate-piece"></div>
-                  <div className="chocolate-piece"></div>
-                  <div className="chocolate-piece"></div>
-                  <div className="chocolate-piece"></div>
-                  <div className="chocolate-piece"></div>
-                  <div className="chocolate-piece"></div>
-                </div>
-              </div>
-              <div className="product-info">
-                <p className="product-code">{choco.code}</p>
-                <h3 className="product-name">{choco.name}</h3>
-                <p className="product-desc">{choco.desc}</p>
-                <div className="product-footer">
-                  <span className="product-price">₹{choco.price}</span>
-                  <button
-                    type="button"
-                    className="add-btn"
-                    onClick={() => handleAddToCart(choco)}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            </article>
-          ))}
+        <div className="collection-toolbar">
+          <form className="collection-search-row" onSubmit={handleSearchSubmit}>
+            <input
+              type="text"
+              className="collection-search-input"
+              placeholder="Search by flavour, ingredient, or name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <select
+              className="collection-sort-select"
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value)}
+            >
+              <option value="featured">Featured First</option>
+              <option value="price-low">Price: Low to High</option>
+              <option value="price-high">Price: High to Low</option>
+              <option value="name">Name: A to Z</option>
+              <option value="newest">Newest Additions</option>
+            </select>
+          </form>
+
+          <div className="collection-categories">
+            <button
+              type="button"
+              className={`category-tab ${selectedCategory === '' ? 'active' : ''}`}
+              onClick={() => handleCategoryChange('')}
+            >
+              All Chocolates ({pagination.totalProducts || 60})
+            </button>
+            {APPROVED_CATEGORIES.map((cat) => {
+              const catInfo = categoriesData.find((c) => c.category === cat);
+              const countText = catInfo ? ` (${catInfo.count})` : '';
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  className={`category-tab ${selectedCategory === cat ? 'active' : ''}`}
+                  onClick={() => handleCategoryChange(cat)}
+                >
+                  {cat}{countText}
+                </button>
+              );
+            })}
+          </div>
         </div>
+
+        {addedNotice && (
+          <div
+            className="auth-notice"
+            style={{ marginBottom: '2rem', textAlign: 'center' }}
+          >
+            {addedNotice}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="collection-empty-box">
+            <p className="section-title" style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>
+              Loading Cocora chocolates...
+            </p>
+            <p className="collection-intro" style={{ margin: '0 auto' }}>
+              Fetching latest batch profiles from the kitchen database.
+            </p>
+          </div>
+        ) : error ? (
+          <div className="collection-empty-box">
+            <p className="section-title" style={{ fontSize: '1.5rem', color: '#E06C75', marginBottom: '1rem' }}>
+              {error}
+            </p>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => fetchProducts(pagination.currentPage)}
+            >
+              Try Again
+            </button>
+          </div>
+        ) : products.length === 0 ? (
+          <div className="collection-empty-box">
+            <p className="section-title" style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>
+              No chocolates matched your criteria
+            </p>
+            <p className="collection-intro" style={{ margin: '0 auto 1.5rem auto' }}>
+              Try clearing your search query or selecting a different category.
+            </p>
+            <button
+              type="button"
+              className="btn-outline"
+              onClick={() => {
+                setSelectedCategory('');
+                setSearchTerm('');
+                setSortOption('featured');
+              }}
+            >
+              Reset Filters
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="product-grid">
+              {products.map((product) => (
+                <article key={product._id} className="product-card">
+                  <div className="product-image-container">
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="product-real-img"
+                      loading="lazy"
+                    />
+                    {product.isFeatured && (
+                      <span className="product-badge-featured">FEATURED</span>
+                    )}
+                  </div>
+                  <div className="product-info">
+                    <p className="product-category-sub">
+                      {product.category} {product.cocoaPercentage ? `· ${product.cocoaPercentage}% Cocoa` : ''}
+                    </p>
+                    <h3 className="product-name">{product.name}</h3>
+                    <p className="product-desc">{product.description}</p>
+                    {product.flavourNotes && product.flavourNotes.length > 0 && (
+                      <div className="product-flavour-tags">
+                        {product.flavourNotes.slice(0, 3).map((note) => (
+                          <span key={note} className="flavour-tag">{note}</span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="product-footer">
+                      <span className="product-price">₹{product.price}</span>
+                      <button
+                        type="button"
+                        className="add-btn"
+                        onClick={() => handleAddToCart(product)}
+                        title="Add to cart"
+                        disabled={product.stock <= 0}
+                      >
+                        {product.stock <= 0 ? '✕' : '+'}
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {pagination.totalPages > 1 && (
+              <div className="collection-pagination">
+                <button
+                  type="button"
+                  className="pagination-btn"
+                  onClick={() => handlePageChange(pagination.currentPage - 1)}
+                  disabled={!pagination.hasPrevPage}
+                >
+                  &larr; Previous
+                </button>
+                <span className="pagination-info">
+                  Page {pagination.currentPage} of {pagination.totalPages} ({pagination.totalProducts} chocolates)
+                </span>
+                <button
+                  type="button"
+                  className="pagination-btn"
+                  onClick={() => handlePageChange(pagination.currentPage + 1)}
+                  disabled={!pagination.hasNextPage}
+                >
+                  Next &rarr;
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </section>
 
       <section className="collection-cta">
         <div className="collection-cta-inner">
-          <h2 className="cta-title">Ready to fill a tray?</h2>
-          <p className="cta-text">Twelve cavities, and no rule about how you fill them.</p>
+          <h2 className="cta-title">Ready to build your custom box?</h2>
+          <p className="cta-text">Choose between 6, 12, or 24 cavities and select your favourite flavours.</p>
           <Link to="/build" className="btn-primary">Build your box</Link>
         </div>
       </section>
@@ -137,5 +331,5 @@ export default function Collection({ cart, setCart }) {
         </div>
       </footer>
     </div>
-  )
+  );
 }
