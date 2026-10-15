@@ -147,6 +147,20 @@ const orderSchema = new mongoose.Schema(
     paymentStatus: {
       type: String,
       default: 'Unpaid - Payment Integration Pending'
+    },
+    orderType: {
+      type: String,
+      enum: ['regular', 'customBox'],
+      default: 'regular'
+    },
+    customBoxDetails: {
+      traySize: {
+        type: Number,
+        enum: [6, 12, 24]
+      },
+      totalChocolates: {
+        type: Number
+      }
     }
   },
   {
