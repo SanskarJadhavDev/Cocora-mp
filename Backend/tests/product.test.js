@@ -117,11 +117,26 @@ const runProductVerification = async () => {
       }
     );
 
-    if (custRegRes.statusCode !== 201 || !custRegRes.body.token) {
+    let customerToken = custRegRes.body?.token;
+    if (!customerToken) {
+      await User.updateOne({ email: customerEmail }, { isEmailVerified: true });
+      const loginRes = await makeRequest(
+        {
+          hostname: 'localhost',
+          port: 5000,
+          path: '/api/auth/login',
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        },
+        { email: customerEmail, password: 'Password123!' }
+      );
+      customerToken = loginRes.body?.token;
+    }
+
+    if (!customerToken) {
       logResult('Customer Setup', false, 'Failed to create test customer account');
       return;
     }
-    const customerToken = custRegRes.body.token;
     logResult('Customer Setup', true, 'Created test customer for authorization checks');
 
     const testProductPayload1 = {

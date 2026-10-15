@@ -8,6 +8,7 @@ const buildCartDetails = (cart) => {
     return {
       _id: cart ? cart._id : null,
       items: [],
+      totalItems: 0,
       subtotal: 0,
       deliveryFee: 0,
       totalAmount: 0
@@ -16,12 +17,14 @@ const buildCartDetails = (cart) => {
 
   const activeItems = [];
   let subtotal = 0;
+  let totalItems = 0;
 
   for (const item of cart.items) {
     if (item.product && item.product.isAvailable) {
       const price = item.product.price || 0;
       const itemTotal = price * item.quantity;
       subtotal += itemTotal;
+      totalItems += item.quantity;
 
       activeItems.push({
         product: {
@@ -46,6 +49,7 @@ const buildCartDetails = (cart) => {
   return {
     _id: cart._id,
     items: activeItems,
+    totalItems,
     subtotal,
     deliveryFee,
     totalAmount
@@ -283,6 +287,7 @@ const clearCart = async (req, res, next) => {
       data: {
         _id: cart ? cart._id : null,
         items: [],
+        totalItems: 0,
         subtotal: 0,
         deliveryFee: 0,
         totalAmount: 0

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { authApi } from '../services/api';
 import '../css/login.css';
 
 export default function Login() {
@@ -23,6 +24,7 @@ export default function Login() {
 
   const [errors, setErrors] = useState({});
   const [statusNotice, setStatusNotice] = useState('');
+  const [isResending, setIsResending] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -95,13 +97,9 @@ export default function Login() {
 
     try {
       if (isRegister) {
-        const user = await register(formData.name.trim(), formData.email.trim(), formData.password);
-        if (user && user.role === 'admin') {
-          navigate('/admin', { replace: true });
-        } else {
-          const from = location.state?.from || '/';
-          navigate(from, { replace: true });
-        }
+        const response = await register(formData.name.trim(), formData.email.trim(), formData.password);
+        setStatusNotice(response?.message || 'Registration successful. Please check your email to verify your account before logging in.');
+        setIsRegister(false);
       } else {
         const user = await login(formData.email.trim(), formData.password);
         if (user && user.role === 'admin') {
@@ -115,6 +113,23 @@ export default function Login() {
       setStatusNotice(err.message || 'Authentication failed. Please verify your details.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!formData.email.trim()) {
+      setStatusNotice('Please enter your email address to resend verification.');
+      return;
+    }
+
+    setIsResending(true);
+    try {
+      const response = await authApi.resendVerification(formData.email.trim());
+      setStatusNotice(response?.message || 'Verification email sent. Please check your inbox.');
+    } catch (err) {
+      setStatusNotice(err.message || 'Failed to resend verification email.');
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -141,7 +156,20 @@ export default function Login() {
 
             {statusNotice && (
               <div className="auth-notice" style={{ marginBottom: '1.25rem' }}>
-                {statusNotice}
+                <p style={{ margin: 0 }}>{statusNotice}</p>
+                {statusNotice.toLowerCase().includes('verification') && formData.email.trim() && (
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <button
+                      type="button"
+                      className="auth-switch-btn"
+                      style={{ textDecoration: 'underline' }}
+                      onClick={handleResendVerification}
+                      disabled={isResending}
+                    >
+                      {isResending ? 'Resending...' : 'Resend verification email'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -242,13 +270,12 @@ export default function Login() {
                     />
                     <span>Remember me</span>
                   </label>
-                  <a
-                    href="#forgot"
+                  <Link
+                    to="/forgot-password"
                     className="auth-forgot-link"
-                    onClick={(e) => e.preventDefault()}
                   >
                     Forgot password?
-                  </a>
+                  </Link>
                 </div>
               )}
 

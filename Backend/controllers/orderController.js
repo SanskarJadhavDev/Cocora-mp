@@ -6,7 +6,7 @@ const { calculateDeliveryFee, generateOrderNumber } = require('../utils/orderUti
 const { sendOrderConfirmationEmail } = require('../services/emailService');
 
 const validateCustomerDetails = (data) => {
-  const details = data.customerDetails || data;
+  const details = data.customerDetails || data.shippingAddress || data;
   const { name, email, phone, address, city, pincode } = details || {};
 
   if (!name || typeof name !== 'string' || !name.trim()) {

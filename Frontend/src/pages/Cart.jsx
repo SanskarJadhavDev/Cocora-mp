@@ -7,7 +7,7 @@ import '../css/cart.css';
 
 export default function Cart() {
   const navigate = useNavigate();
-  const { cart, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { cart, updateQuantity, removeFromCart, clearCart, refreshCart } = useCart();
   const { user, isAuthenticated } = useAuth();
 
   const [activeTab, setActiveTab] = useState('cart');
@@ -127,7 +127,7 @@ export default function Cart() {
 
     try {
       const payload = {
-        shippingAddress: {
+        customerDetails: {
           name: formData.name.trim(),
           email: formData.email.trim(),
           phone: formData.phone.replace(/[\s-]/g, ''),
@@ -141,7 +141,7 @@ export default function Cart() {
       const response = await orderApi.checkout(payload);
       if (response && response.data) {
         setPlacedOrder(response.data);
-        await clearCart();
+        await refreshCart();
       }
     } catch (err) {
       setCheckoutNotice(err.message || 'Failed to place order. Please review your details.');
@@ -200,7 +200,7 @@ export default function Cart() {
               <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉</div>
               <p className="section-tag">ORDER CONFIRMED</p>
               <h2 className="tray-name" style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>
-                Thank you, {placedOrder.shippingAddress?.name || 'Valued Customer'}!
+                Thank you, {placedOrder.customerDetails?.name || placedOrder.shippingAddress?.name || 'Valued Customer'}!
               </h2>
               <p className="build-text">
                 Your order has been placed with Bandra West kitchen.
@@ -224,7 +224,7 @@ export default function Cart() {
                 </p>
                 <p style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'rgba(245, 237, 224, 0.7)' }}>Destination:</span>
-                  <span>{placedOrder.shippingAddress?.city}, {placedOrder.shippingAddress?.pincode}</span>
+                  <span>{placedOrder.customerDetails?.city || placedOrder.shippingAddress?.city}, {placedOrder.customerDetails?.pincode || placedOrder.shippingAddress?.pincode}</span>
                 </p>
               </div>
               <div className="hero-buttons" style={{ justifyContent: 'center' }}>

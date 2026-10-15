@@ -25,6 +25,10 @@ const provisionAdmin = async () => {
 
     if (existingUser) {
       if (existingUser.role === 'admin') {
+        if (!existingUser.isEmailVerified) {
+          existingUser.isEmailVerified = true;
+          await existingUser.save();
+        }
         console.log('Admin account already exists with this email. Password was not modified.');
       } else {
         console.error('An existing user with this email has the customer role. Not promoting customer to admin.');
@@ -37,7 +41,8 @@ const provisionAdmin = async () => {
       name: name.trim(),
       email: normalizedEmail,
       password: password,
-      role: 'admin'
+      role: 'admin',
+      isEmailVerified: true
     });
 
     console.log('Admin account provisioned successfully');

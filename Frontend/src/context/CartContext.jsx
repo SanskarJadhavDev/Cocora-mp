@@ -25,8 +25,23 @@ const calculateTotals = (items = []) => {
   };
 };
 
+const mapServerCart = (data = {}) => {
+  const items = Array.isArray(data.items) ? data.items : [];
+  const totalItems = data.totalItems !== undefined
+    ? Number(data.totalItems)
+    : items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
+
+  return {
+    items,
+    totalItems,
+    subtotal: Number(data.subtotal) || 0,
+    deliveryFee: Number(data.deliveryFee) || 0,
+    totalAmount: Number(data.totalAmount) || 0
+  };
+};
+
 export function CartProvider({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [cartState, setCartState] = useState(() => {
     try {
       const saved = localStorage.getItem(GUEST_CART_KEY);
@@ -44,13 +59,7 @@ export function CartProvider({ children }) {
     try {
       const response = await cartApi.getCart();
       if (response && response.data) {
-        setCartState({
-          items: response.data.items || [],
-          totalItems: response.data.totalItems || 0,
-          subtotal: response.data.subtotal || 0,
-          deliveryFee: response.data.deliveryFee || 0,
-          totalAmount: response.data.totalAmount || 0
-        });
+        setCartState(mapServerCart(response.data));
       }
     } catch {
       setCartState(calculateTotals([]));
@@ -71,7 +80,7 @@ export function CartProvider({ children }) {
         setCartState(calculateTotals([]));
       }
     }
-  }, [isAuthenticated, fetchServerCart]);
+  }, [isAuthenticated, user?._id, fetchServerCart]);
 
   const addToCart = async (productOrId, quantity = 1) => {
     const productId = typeof productOrId === 'object' ? (productOrId._id || productOrId.id || productOrId.productId) : productOrId;
@@ -81,13 +90,7 @@ export function CartProvider({ children }) {
       try {
         const response = await cartApi.addItem(productId, quantity);
         if (response && response.data) {
-          setCartState({
-            items: response.data.items || [],
-            totalItems: response.data.totalItems || 0,
-            subtotal: response.data.subtotal || 0,
-            deliveryFee: response.data.deliveryFee || 0,
-            totalAmount: response.data.totalAmount || 0
-          });
+          setCartState(mapServerCart(response.data));
           return { success: true };
         }
       } catch (err) {
@@ -140,13 +143,7 @@ export function CartProvider({ children }) {
       try {
         const response = await cartApi.updateItem(productId, newQuantity);
         if (response && response.data) {
-          setCartState({
-            items: response.data.items || [],
-            totalItems: response.data.totalItems || 0,
-            subtotal: response.data.subtotal || 0,
-            deliveryFee: response.data.deliveryFee || 0,
-            totalAmount: response.data.totalAmount || 0
-          });
+          setCartState(mapServerCart(response.data));
         }
       } catch (err) {
         return { success: false, message: err.message };
@@ -186,13 +183,7 @@ export function CartProvider({ children }) {
       try {
         const response = await cartApi.removeItem(productId);
         if (response && response.data) {
-          setCartState({
-            items: response.data.items || [],
-            totalItems: response.data.totalItems || 0,
-            subtotal: response.data.subtotal || 0,
-            deliveryFee: response.data.deliveryFee || 0,
-            totalAmount: response.data.totalAmount || 0
-          });
+          setCartState(mapServerCart(response.data));
         }
       } catch (err) {
         return { success: false, message: err.message };

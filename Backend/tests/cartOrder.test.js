@@ -98,7 +98,21 @@ const runCartAndOrderVerification = async () => {
       },
       { name: 'Customer Alice', email: customerAEmail, password: 'PasswordAlice1!' }
     );
-    const tokenA = custAReg.body?.token;
+    let tokenA = custAReg.body?.token;
+    if (!tokenA) {
+      await User.updateOne({ email: customerAEmail }, { isEmailVerified: true });
+      const loginA = await makeRequest(
+        {
+          hostname: 'localhost',
+          port: 5000,
+          path: '/api/auth/login',
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        },
+        { email: customerAEmail, password: 'PasswordAlice1!' }
+      );
+      tokenA = loginA.body?.token;
+    }
 
     const customerBEmail = `cust_b_${Date.now()}@cocora.test`;
     testUserEmails.push(customerBEmail);
@@ -112,7 +126,21 @@ const runCartAndOrderVerification = async () => {
       },
       { name: 'Customer Bob', email: customerBEmail, password: 'PasswordBob123!' }
     );
-    const tokenB = custBReg.body?.token;
+    let tokenB = custBReg.body?.token;
+    if (!tokenB) {
+      await User.updateOne({ email: customerBEmail }, { isEmailVerified: true });
+      const loginB = await makeRequest(
+        {
+          hostname: 'localhost',
+          port: 5000,
+          path: '/api/auth/login',
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        },
+        { email: customerBEmail, password: 'PasswordBob123!' }
+      );
+      tokenB = loginB.body?.token;
+    }
 
     logResult('Customer Accounts Setup', Boolean(tokenA && tokenB), `Created Customer A (${customerAEmail}) & Customer B (${customerBEmail})`);
 

@@ -10,7 +10,7 @@ const createTransporter = () => {
     return null;
   }
 
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     host,
     port,
     secure: port === 465,
@@ -19,6 +19,59 @@ const createTransporter = () => {
       pass
     }
   });
+};
+
+const sendVerificationEmail = async (user, rawToken) => {
+  try {
+    const transporter = createTransporter();
+    if (!transporter) {
+      console.error('Verification email error: SMTP configuration missing');
+      return {
+        success: false,
+        error: 'SMTP configuration missing'
+      };
+    }
+
+    const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, '');
+    const verificationUrl = `${clientUrl}/verify-email?token=${rawToken}`;
+    const fromAddress = process.env.SMTP_FROM || 'Cocora Chocolates <orders@cocora.in>';
+
+    const mailOptions = {
+      from: fromAddress,
+      to: user.email,
+      subject: 'Verify your Cocora account',
+      text: `Hello ${user.name},\n\nThank you for creating an account with Cocora!\n\nPlease verify your email address by opening the following link:\n${verificationUrl}\n\nThis verification link is valid for 24 hours.\n\nWarm regards,\nCocora Chocolatiers`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.5;">
+          <h2 style="color: #2D0826;">Welcome to Cocora, ${user.name}!</h2>
+          <p>Thank you for creating an account with Cocora Artisanal Chocolates.</p>
+          <p>Please confirm your email address to activate your account and start ordering:</p>
+          <div style="margin: 24px 0; text-align: center;">
+            <a href="${verificationUrl}" style="background-color: #D4AF37; color: #1A0F2E; padding: 12px 28px; text-decoration: none; font-weight: bold; border-radius: 6px; display: inline-block;">
+              Verify Email Address
+            </a>
+          </div>
+          <p style="font-size: 0.9rem; color: #666;">Or copy and paste this link into your browser:</p>
+          <p style="font-size: 0.85rem; word-break: break-all; color: #555;">${verificationUrl}</p>
+          <p style="font-size: 0.85rem; color: #888; margin-top: 24px;">This verification link will expire in 24 hours.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+          <p style="font-size: 0.8rem; color: #999;">If you did not register for an account, please disregard this email.</p>
+        </div>
+      `
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    return {
+      success: true,
+      messageId: info.messageId
+    };
+  } catch (error) {
+    console.error('Verification email error: Failed to send verification email -', error.message);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
 };
 
 const sendOrderConfirmationEmail = async (order) => {
@@ -130,7 +183,58 @@ Cocora Chocolatiers`,
   }
 };
 
+const sendPasswordResetOtpEmail = async (user, otp) => {
+  try {
+    const transporter = createTransporter();
+    if (!transporter) {
+      console.error('Password reset email error: SMTP configuration missing');
+      return {
+        success: false,
+        error: 'SMTP configuration missing'
+      };
+    }
+
+    const fromAddress = process.env.SMTP_FROM || 'Cocora Chocolates <orders@cocora.in>';
+
+    const mailOptions = {
+      from: fromAddress,
+      to: user.email,
+      subject: 'Your Cocora Password Reset Code',
+      text: `Hello ${user.name},\n\nWe received a request to reset your password for your Cocora account.\n\nYour 6-digit verification code is: ${otp}\n\nThis code will expire in 10 minutes.\n\nIf you did not request a password reset, please ignore this email or contact support.\n\nWarm regards,\nCocora Chocolatiers`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.5;">
+          <h2 style="color: #2D0826;">Password Reset Request</h2>
+          <p>Hello ${user.name},</p>
+          <p>We received a request to reset your password for your Cocora account. Use the verification code below to proceed:</p>
+          <div style="margin: 28px 0; text-align: center;">
+            <div style="display: inline-block; background-color: #1A0F2E; color: #D4AF37; font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 16px 36px; border-radius: 8px; border: 1px solid #D4AF37;">
+              ${otp}
+            </div>
+          </div>
+          <p style="font-size: 0.9rem; color: #666; text-align: center;">This code will expire in <strong>10 minutes</strong>.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+          <p style="font-size: 0.8rem; color: #999;">If you did not request a password reset, please disregard this email. Your password will remain unchanged.</p>
+        </div>
+      `
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    return {
+      success: true,
+      messageId: info.messageId
+    };
+  } catch (error) {
+    console.error('Password reset email error: Failed to send OTP email -', error.message);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
 module.exports = {
   createTransporter,
-  sendOrderConfirmationEmail
+  sendVerificationEmail,
+  sendOrderConfirmationEmail,
+  sendPasswordResetOtpEmail
 };

@@ -131,7 +131,12 @@ async function request(endpoint, options = {}) {
 export const authApi = {
   register: (payload) => request('/auth/register', { method: 'POST', body: payload }),
   login: (payload) => request('/auth/login', { method: 'POST', body: payload }),
-  getMe: () => request('/auth/me', { method: 'GET' })
+  getMe: () => request('/auth/me', { method: 'GET' }),
+  verifyEmail: (token) => request('/auth/verify-email', { method: 'POST', body: { token } }),
+  resendVerification: (email) => request('/auth/resend-verification', { method: 'POST', body: { email } }),
+  forgotPassword: (email) => request('/auth/forgot-password', { method: 'POST', body: { email } }),
+  verifyResetOtp: (email, otp) => request('/auth/verify-reset-otp', { method: 'POST', body: { email, otp } }),
+  resetPassword: (email, resetToken, newPassword) => request('/auth/reset-password', { method: 'POST', body: { email, resetToken, newPassword } })
 };
 
 export const productApi = {

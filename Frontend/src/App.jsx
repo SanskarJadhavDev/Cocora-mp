@@ -8,6 +8,8 @@ import Build from './pages/Build';
 import GiftFinder from './pages/GiftFinder';
 import Cart from './pages/Cart';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import VerifyEmail from './pages/VerifyEmail';
 import AdminDashboard from './pages/AdminDashboard';
 import './css/common.css';
 
@@ -25,6 +27,8 @@ function AppContent() {
         <Route path="/gift-finder" element={<GiftFinder />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/admin" element={<AdminDashboard />} />
       </Routes>
     </>
