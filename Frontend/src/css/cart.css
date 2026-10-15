@@ -1,0 +1,67 @@
+.tray-sizes {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 6rem 1.5rem;
+}
+
+.tray-card {
+  background-color: #2E1A4F;
+  padding: 2rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  margin-bottom: 2rem;
+}
+
+.tray-name {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.tray-price {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #D4AF37;
+  margin-bottom: 1.5rem;
+}
+
+.build-text {
+  color: rgba(245, 237, 224, 0.8);
+  margin-bottom: 2rem;
+}
+
+#checkout-form div {
+  margin-bottom: 1rem;
+}
+
+#checkout-form label {
+  font-size: 0.875rem;
+  color: rgba(245, 237, 224, 0.8);
+  display: inline-block;
+  margin-bottom: 0.25rem;
+}
+
+#checkout-form input {
+  width: 100%;
+  max-width: 24rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  background-color: #1A0F2E;
+  color: #F5EDE0;
+  font-family: inherit;
+  font-size: 1rem;
+  outline: none;
+}
+
+#checkout-form input:focus {
+  border-color: #D4AF37;
+}
+
+#cart-items-list .product-card {
+  margin-bottom: 1rem;
+}
+
+#cart-items-list .hero-buttons {
+  align-items: center;
+}

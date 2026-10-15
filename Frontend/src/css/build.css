@@ -1,0 +1,91 @@
+.build-section {
+  background-color: #2E1A4F;
+  border-top: 1px solid rgba(212, 175, 55, 0.2);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.build-inner {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 6rem 1.5rem;
+  display: grid;
+  gap: 4rem;
+  align-items: center;
+}
+
+@media (min-width: 768px) {
+  .build-inner {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.build-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+
+.build-text {
+  color: rgba(245, 237, 224, 0.8);
+  margin-bottom: 2rem;
+}
+
+.size-btn.active {
+  background-color: #D4AF37;
+  color: #2E1A4F;
+}
+
+.tray-preview {
+  background-color: #4A2E18;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+}
+
+.tray-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: #D4AF37;
+  margin-bottom: 1rem;
+}
+
+.tray-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.tray-slot {
+  aspect-ratio: 1;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.slot-obsidian { background-color: #5C3A21; }
+.slot-ember { background-color: #7A3020; }
+.slot-ivory-cardamom { background-color: #E8D9C2; }
+.slot-malabar { background-color: #2A1811; }
+.slot-kashmir-rose { background-color: #B06478; }
+.slot-burnt-caramel { background-color: #9D6A3F; }
+.slot-alphonso { background-color: #E0A63C; }
+.slot-midnight-orange { background-color: #C2506A; }
+.slot-hazelnut-praline { background-color: #A06A42; }
+.slot-kesar { background-color: #D99A35; }
+.slot-coconut-kokum { background-color: #ECE2D0; }
+.slot-garden-mint { background-color: #86B39A; }
+
+.slot-empty {
+  background-color: #1A0F2E;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  cursor: default;
+}
+
+.tray-price {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #D4AF37;
+  margin-bottom: 1.5rem;
+}

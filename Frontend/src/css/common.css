@@ -114,6 +114,12 @@ button {
   color: #2E1A4F;
 }
 
+.hero-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
 .product-grid {
   display: grid;
   gap: 2rem;
@@ -247,8 +253,13 @@ button {
 .choco-12 .chocolate-tray { background-color: #33574A; }
 .choco-12 .chocolate-piece { background-color: #86B39A; }
 
+.hidden {
+  display: none !important;
+}
+
 .footer {
   border-top: 1px solid rgba(212, 175, 55, 0.3);
+  background-color: #2E1A4F;
 }
 
 .footer-inner {

@@ -48,12 +48,6 @@
   margin-bottom: 2.5rem;
 }
 
-.hero-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
 .hero-stats {
   display: flex;
   flex-wrap: wrap;
@@ -93,76 +87,6 @@
   color: #D4AF37;
   border-bottom: 1px solid #D4AF37;
   padding-bottom: 0.25rem;
-}
-
-.build-section {
-  background-color: #2E1A4F;
-  border-top: 1px solid rgba(212, 175, 55, 0.2);
-  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
-}
-
-.build-inner {
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: 6rem 1.5rem;
-  display: grid;
-  gap: 4rem;
-  align-items: center;
-}
-
-@media (min-width: 768px) {
-  .build-inner {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.build-title {
-  font-size: 2.25rem;
-  font-weight: 700;
-  margin-bottom: 1.5rem;
-}
-
-.build-text {
-  color: rgba(245, 237, 224, 0.8);
-  margin-bottom: 2rem;
-}
-
-.tray-preview {
-  background-color: #4A2E18;
-  padding: 1.5rem;
-  border-radius: 1rem;
-  border: 1px solid rgba(212, 175, 55, 0.4);
-}
-
-.tray-header {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
-  color: #D4AF37;
-  margin-bottom: 1rem;
-}
-
-.tray-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.75rem;
-}
-
-.tray-slot {
-  aspect-ratio: 1;
-  border-radius: 0.5rem;
-}
-
-.slot-obsidian { background-color: #5C3A21; }
-.slot-kesar { background-color: #D99A35; }
-.slot-malabar { background-color: #2A1811; }
-.slot-rose { background-color: #B06478; }
-.slot-ivory { background-color: #E8D9C2; }
-
-.slot-empty {
-  background-color: #1A0F2E;
-  border: 1px solid rgba(212, 175, 55, 0.2);
 }
 
 .tray-sizes {
@@ -263,8 +187,4 @@
 .tray-btn-primary:hover {
   background-color: #E8C860;
   border-color: #E8C860;
-}
-
-.footer {
-  background-color: #2E1A4F;
 }
