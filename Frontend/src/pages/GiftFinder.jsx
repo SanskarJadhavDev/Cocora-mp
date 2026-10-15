@@ -8,10 +8,19 @@ export default function GiftFinder() {
   const { addToCart } = useCart();
   const [stage, setStage] = useState('intro');
   const [step, setStep] = useState(1);
+
   const [recipient, setRecipient] = useState('');
   const [occasion, setOccasion] = useState('');
   const [mood, setMood] = useState('');
-  const [dietary, setDietary] = useState('');
+  const [preferredChocolateTypes, setPreferredChocolateTypes] = useState([]);
+  const [preferredFlavours, setPreferredFlavours] = useState([]);
+  const [sweetnessPreference, setSweetnessPreference] = useState('');
+  const [dietaryRequirements, setDietaryRequirements] = useState([]);
+  const [allergensToAvoid, setAllergensToAvoid] = useState([]);
+  const [budgetMin, setBudgetMin] = useState('');
+  const [budgetMax, setBudgetMax] = useState('');
+
+  const [appliedCriteria, setAppliedCriteria] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [recommendations, setRecommendations] = useState([]);
@@ -23,21 +32,87 @@ export default function GiftFinder() {
     setStep(1);
   };
 
-  const handleFinish = async () => {
+  const toggleItem = (list, setList, item) => {
+    if (list.includes(item)) {
+      setList(list.filter((x) => x !== item));
+    } else {
+      setList([...list, item]);
+    }
+  };
+
+  const getBudgetValidation = () => {
+    const minVal = budgetMin !== '' && budgetMin !== null ? Number(budgetMin) : null;
+    const maxVal = budgetMax !== '' && budgetMax !== null ? Number(budgetMax) : null;
+
+    if (minVal !== null && (isNaN(minVal) || minVal < 0)) {
+      return 'Minimum budget cannot be negative or invalid';
+    }
+    if (maxVal !== null && (isNaN(maxVal) || maxVal < 0)) {
+      return 'Maximum budget cannot be negative or invalid';
+    }
+    if (minVal !== null && maxVal !== null && minVal > maxVal) {
+      return 'Minimum budget cannot be greater than maximum budget';
+    }
+    return '';
+  };
+
+  const budgetError = getBudgetValidation();
+  const isBudgetValid = !budgetError;
+
+  const budgetPresets = [
+    { label: 'All Budgets', min: '', max: '' },
+    { label: 'Under ₹300', min: '', max: '300' },
+    { label: '₹280 – ₹350', min: '280', max: '350' },
+    { label: '₹350 – ₹460', min: '350', max: '460' }
+  ];
+
+  const applyBudgetPreset = (preset) => {
+    setBudgetMin(preset.min);
+    setBudgetMax(preset.max);
+  };
+
+  const isPresetActive = (preset) => {
+    return String(budgetMin) === String(preset.min) && String(budgetMax) === String(preset.max);
+  };
+
+  const handleFinish = async (options = {}) => {
     setLoading(true);
     setError('');
     setStage('result');
 
     try {
       const payload = {
-        recipient,
-        occasion,
-        mood,
         limit: 4
       };
-      if (dietary && dietary !== 'None') {
-        payload.dietaryRequirements = [dietary];
+
+      if (recipient) payload.recipient = recipient;
+      if (occasion) payload.occasion = occasion;
+      if (mood) payload.mood = mood;
+      if (sweetnessPreference) payload.sweetnessPreference = sweetnessPreference;
+
+      if (!options.skipBudget) {
+        if (budgetMin !== '' && budgetMin !== null && !isNaN(Number(budgetMin))) {
+          payload.budgetMin = Number(budgetMin);
+        }
+        if (budgetMax !== '' && budgetMax !== null && !isNaN(Number(budgetMax))) {
+          payload.budgetMax = Number(budgetMax);
+        }
       }
+
+      if (preferredChocolateTypes.length > 0) {
+        payload.preferredChocolateTypes = preferredChocolateTypes;
+      }
+      if (preferredFlavours.length > 0) {
+        payload.preferredFlavours = preferredFlavours;
+      }
+      if (dietaryRequirements.length > 0) {
+        payload.dietaryRequirements = dietaryRequirements;
+      }
+      if (allergensToAvoid.length > 0) {
+        payload.allergensToAvoid = allergensToAvoid;
+      }
+
+      setAppliedCriteria(payload);
 
       const response = await giftFinderApi.recommend(payload);
       if (response && response.recommendations) {
@@ -53,22 +128,31 @@ export default function GiftFinder() {
     }
   };
 
+  const adjustPreferences = () => {
+    setStage('quiz');
+  };
+
   const resetQuiz = () => {
     setRecipient('');
     setOccasion('');
     setMood('');
-    setDietary('');
+    setPreferredChocolateTypes([]);
+    setPreferredFlavours([]);
+    setSweetnessPreference('');
+    setDietaryRequirements([]);
+    setAllergensToAvoid([]);
+    setBudgetMin('');
+    setBudgetMax('');
     setStep(1);
     setRecommendations([]);
     setEmptySuggestions([]);
     setError('');
+    setAppliedCriteria(null);
     setStage('quiz');
   };
 
   const getProgressText = () => {
-    if (step === 1) return '01 / 03';
-    if (step === 2) return '02 / 03';
-    return '03 / 03';
+    return `${String(step).padStart(2, '0')} / 09`;
   };
 
   const handleAddToCart = async (rec) => {
@@ -93,7 +177,7 @@ export default function GiftFinder() {
                 <span className="intro-highlight">We'll find the sweet spot.</span>
               </h1>
               <p className="intro-desc">
-                Answer three quick questions about the recipient, occasion, and flavour preference. Our engine matches real artisanal chocolates tempered fresh in Bandra West.
+                Tell us about your recipient, occasion, flavour palette, and dietary needs. Our engine matches real artisanal chocolates tempered fresh in Bandra West.
               </p>
               <button
                 type="button"
@@ -114,37 +198,38 @@ export default function GiftFinder() {
                   <span id="progress-text" className="quiz-progress-step">{getProgressText()}</span>
                 </div>
                 <div className="progress-track">
-                  <div id="progress-fill" className={`progress-fill step-${step}`}></div>
+                  <div id="progress-fill" className={`progress-fill step-${step}`} style={{ width: `${(step / 9) * 100}%` }}></div>
                 </div>
               </div>
 
               {step === 1 && (
                 <div id="step-1" className="quiz-step">
                   <h2 className="quiz-question">Who are you gifting?</h2>
+                  <p className="quiz-step-desc">Select who this curated chocolate gift is for.</p>
                   <div className="options-grid options-grid-2">
-                    {['Partner', 'Friend', 'Family', 'Colleague'].map((item) => {
-                      const icons = {
-                        Partner: '💍',
-                        Friend: '✨',
-                        Family: '🌿',
-                        Colleague: '🤝'
-                      };
-                      return (
-                        <button
-                          key={item}
-                          type="button"
-                          className={`option-card ${recipient === item ? 'selected' : ''}`}
-                          data-step="1"
-                          data-value={item}
-                          onClick={() => setRecipient(item)}
-                        >
-                          <span className="option-icon">{icons[item]}</span>
-                          <span className="option-text">
-                            <span className="option-title">{item}</span>
-                          </span>
-                        </button>
-                      );
-                    })}
+                    {[
+                      { val: 'Partner', icon: '💍', desc: 'Intimately crafted for your special someone' },
+                      { val: 'Friend', icon: '✨', desc: 'A crowd favourite for joyful sharing' },
+                      { val: 'Family', icon: '🌿', desc: 'Wholesome indulgence for family gatherings' },
+                      { val: 'Colleague', icon: '🤝', desc: 'Distinguished profile suitable for colleagues' },
+                      { val: 'Parents', icon: '🏡', desc: 'Refined chocolate crafted with special care' },
+                      { val: 'Connoisseurs', icon: '🍫', desc: 'Complex single-origin profiles for cacao lovers' }
+                    ].map((item) => (
+                      <button
+                        key={item.val}
+                        type="button"
+                        className={`option-card ${recipient === item.val ? 'selected' : ''}`}
+                        data-step="1"
+                        data-value={item.val}
+                        onClick={() => setRecipient(item.val)}
+                      >
+                        <span className="option-icon">{item.icon}</span>
+                        <span className="option-text">
+                          <span className="option-title">{item.val}</span>
+                          <span className="option-desc">{item.desc}</span>
+                        </span>
+                      </button>
+                    ))}
                   </div>
                   <div className="quiz-actions">
                     <button
@@ -163,13 +248,14 @@ export default function GiftFinder() {
               {step === 2 && (
                 <div id="step-2" className="quiz-step">
                   <h2 className="quiz-question">What's the occasion?</h2>
+                  <p className="quiz-step-desc">We tailor recipe themes and gift box presentation to the milestone.</p>
                   <div className="options-grid options-grid-2">
                     {[
-                      { val: 'Birthday', icon: '🎂' },
-                      { val: 'Anniversary', icon: '🥂' },
-                      { val: 'Celebration', icon: '🎉' },
-                      { val: 'Thank You', icon: '💌' },
-                      { val: 'Just Because', icon: '✨', full: true }
+                      { val: 'Birthday', icon: '🎂', desc: 'Celebrations & joyful milestones' },
+                      { val: 'Anniversary', icon: '🥂', desc: 'Romantic memories & heartfelt moments' },
+                      { val: 'Celebration', icon: '🎉', desc: 'Festive treats & joyful gatherings' },
+                      { val: 'Thank You', icon: '💌', desc: 'Gratitude expressed in artisanal chocolate' },
+                      { val: 'Just Because', icon: '✨', desc: 'Spontaneous anytime indulgence', full: true }
                     ].map((item) => (
                       <button
                         key={item.val}
@@ -182,6 +268,7 @@ export default function GiftFinder() {
                         <span className="option-icon">{item.icon}</span>
                         <span className="option-text">
                           <span className="option-title">{item.val}</span>
+                          <span className="option-desc">{item.desc}</span>
                         </span>
                       </button>
                     ))}
@@ -211,12 +298,13 @@ export default function GiftFinder() {
               {step === 3 && (
                 <div id="step-3" className="quiz-step">
                   <h2 className="quiz-question">What's their chocolate mood?</h2>
+                  <p className="quiz-step-desc">Pick the general intensity or let our chefs surprise you.</p>
                   <div className="options-grid options-grid-2">
                     {[
-                      { val: 'Bold', desc: 'Dark, intense single-origin (65–85%)' },
-                      { val: 'Classic', desc: 'Silky milk chocolate & sweet cream' },
-                      { val: 'Playful', desc: 'Fruit, floral & unexpected Indian spices' },
-                      { val: 'Surprise me', desc: 'Curated selection from kitchen favourites' }
+                      { val: 'Bold', icon: '☕', desc: 'Dark, intense single-origin (65–85% cacao)' },
+                      { val: 'Classic', icon: '🥛', desc: 'Silky smooth milk chocolate & sweet dairy cream' },
+                      { val: 'Playful', icon: '🍓', desc: 'Fruit, floral & unexpected Indian spices' },
+                      { val: 'Surprise me', icon: '🎁', desc: 'Curated selection from kitchen signature favourites' }
                     ].map((item) => (
                       <button
                         key={item.val}
@@ -226,6 +314,7 @@ export default function GiftFinder() {
                         data-value={item.val}
                         onClick={() => setMood(item.val)}
                       >
+                        <span className="option-icon">{item.icon}</span>
                         <span className="option-text">
                           <span className="option-title">{item.val}</span>
                           <span className="option-desc">{item.desc}</span>
@@ -233,25 +322,7 @@ export default function GiftFinder() {
                       </button>
                     ))}
                   </div>
-
-                  <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(212, 175, 55, 0.2)' }}>
-                    <p className="section-tag" style={{ marginBottom: '0.75rem' }}>OPTIONAL DIETARY PREFERENCE</p>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      {['None', 'Vegan', 'Gluten-Free', 'Sugar-Free', 'Dairy-Free'].map((d) => (
-                        <button
-                          key={d}
-                          type="button"
-                          className={`category-tab ${(dietary === d || (!dietary && d === 'None')) ? 'active' : ''}`}
-                          style={{ fontSize: '0.8rem', padding: '0.35rem 0.85rem' }}
-                          onClick={() => setDietary(d === 'None' ? '' : d)}
-                        >
-                          {d}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="quiz-actions quiz-actions-split" style={{ marginTop: '2rem' }}>
+                  <div className="quiz-actions quiz-actions-split">
                     <button
                       type="button"
                       id="back-3"
@@ -260,15 +331,449 @@ export default function GiftFinder() {
                     >
                       Back
                     </button>
+                    <div className="quiz-actions-group">
+                      <button
+                        type="button"
+                        id="skip-3"
+                        className="btn-skip"
+                        onClick={() => {
+                          setMood('');
+                          setStep(4);
+                        }}
+                      >
+                        Skip
+                      </button>
+                      <button
+                        type="button"
+                        id="next-3"
+                        className="btn-primary"
+                        onClick={() => setStep(4)}
+                      >
+                        Continue &rarr;
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 4 && (
+                <div id="step-4" className="quiz-step">
+                  <h2 className="quiz-question">Preferred chocolate types?</h2>
+                  <p className="quiz-step-desc">Select one or more styles they love, or skip to view all varieties.</p>
+                  <div className="options-grid options-grid-2">
+                    {[
+                      { val: 'Dark Chocolate', icon: '🍫', desc: 'Single-origin, intense roasted cacao & deep undertones' },
+                      { val: 'Milk Chocolate', icon: '🥛', desc: 'Velvety, smooth dairy cream & golden cocoa balance' },
+                      { val: 'White Chocolate', icon: '🍦', desc: 'Buttery cocoa butter infused with natural vanilla pods' },
+                      { val: 'Zero Sugar', icon: '🌿', desc: '100% sugar-free, crafted with natural plant sweeteners' }
+                    ].map((item) => {
+                      const isSelected = preferredChocolateTypes.includes(item.val);
+                      return (
+                        <button
+                          key={item.val}
+                          type="button"
+                          className={`option-card ${isSelected ? 'selected' : ''}`}
+                          data-step="4"
+                          data-value={item.val}
+                          onClick={() => toggleItem(preferredChocolateTypes, setPreferredChocolateTypes, item.val)}
+                        >
+                          <span className="option-icon">{item.icon}</span>
+                          <span className="option-text">
+                            <span className="option-title">{item.val}</span>
+                            <span className="option-desc">{item.desc}</span>
+                          </span>
+                          <span className="option-checkbox">{isSelected ? '✓' : ''}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="quiz-actions quiz-actions-split">
                     <button
                       type="button"
-                      id="finish-btn"
-                      className="btn-primary"
-                      disabled={!mood}
-                      onClick={handleFinish}
+                      id="back-4"
+                      className="btn-outline"
+                      onClick={() => setStep(3)}
                     >
-                      Find my gifts &rarr;
+                      Back
                     </button>
+                    <div className="quiz-actions-group">
+                      <button
+                        type="button"
+                        id="skip-4"
+                        className="btn-skip"
+                        onClick={() => {
+                          setPreferredChocolateTypes([]);
+                          setStep(5);
+                        }}
+                      >
+                        Skip
+                      </button>
+                      <button
+                        type="button"
+                        id="next-4"
+                        className="btn-primary"
+                        onClick={() => setStep(5)}
+                      >
+                        Continue &rarr;
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 5 && (
+                <div id="step-5" className="quiz-step">
+                  <h2 className="quiz-question">Which flavour notes do they love?</h2>
+                  <p className="quiz-step-desc">Select their favourite flavour accents, or skip.</p>
+                  <div className="options-grid options-grid-2">
+                    {[
+                      { val: 'Caramel', icon: '🍯', desc: 'Salted toffee, golden syrup & dulce de leche' },
+                      { val: 'Sea Salt', icon: '🌊', desc: 'Flaked fleur de sel & clean mineral finish' },
+                      { val: 'Vanilla', icon: '🌸', desc: 'Madagascar bourbon vanilla beans & sweet cream' },
+                      { val: 'Hazelnut', icon: '🌰', desc: 'Roasted hazelnuts, almond flakes & nutty praline' },
+                      { val: 'Espresso', icon: '☕', desc: 'Dark roast arabica beans & crunchy cocoa nibs' },
+                      { val: 'Berry', icon: '🍓', desc: 'Tart raspberry, strawberry coulis & fruit vibrancy' },
+                      { val: 'Spices', icon: '✨', desc: 'Ceylon cinnamon, green cardamom & warm nutmeg' },
+                      { val: 'Honey', icon: '🐝', desc: 'Fragrant wildflower honey & golden honeycomb' }
+                    ].map((item) => {
+                      const isSelected = preferredFlavours.includes(item.val);
+                      return (
+                        <button
+                          key={item.val}
+                          type="button"
+                          className={`option-card ${isSelected ? 'selected' : ''}`}
+                          data-step="5"
+                          data-value={item.val}
+                          onClick={() => toggleItem(preferredFlavours, setPreferredFlavours, item.val)}
+                        >
+                          <span className="option-icon">{item.icon}</span>
+                          <span className="option-text">
+                            <span className="option-title">{item.val}</span>
+                            <span className="option-desc">{item.desc}</span>
+                          </span>
+                          <span className="option-checkbox">{isSelected ? '✓' : ''}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="quiz-actions quiz-actions-split">
+                    <button
+                      type="button"
+                      id="back-5"
+                      className="btn-outline"
+                      onClick={() => setStep(4)}
+                    >
+                      Back
+                    </button>
+                    <div className="quiz-actions-group">
+                      <button
+                        type="button"
+                        id="skip-5"
+                        className="btn-skip"
+                        onClick={() => {
+                          setPreferredFlavours([]);
+                          setStep(6);
+                        }}
+                      >
+                        Skip
+                      </button>
+                      <button
+                        type="button"
+                        id="next-5"
+                        className="btn-primary"
+                        onClick={() => setStep(6)}
+                      >
+                        Continue &rarr;
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 6 && (
+                <div id="step-6" className="quiz-step">
+                  <h2 className="quiz-question">What is their sweetness preference?</h2>
+                  <p className="quiz-step-desc">Guide the balance between cacao intensity and sweetness.</p>
+                  <div className="options-grid">
+                    {[
+                      { val: 'Low', icon: '🌑', desc: 'Subtle sweetness that lets pure cocoa terroir and deep roasting shine' },
+                      { val: 'Medium', icon: '🌓', desc: 'Harmonious, classic balance between smooth cocoa and refined sweetness' },
+                      { val: 'High', icon: '🌕', desc: 'Luscious, dessert-forward profile with velvety dairy richness' }
+                    ].map((item) => (
+                      <button
+                        key={item.val}
+                        type="button"
+                        className={`option-card ${sweetnessPreference === item.val ? 'selected' : ''}`}
+                        data-step="6"
+                        data-value={item.val}
+                        onClick={() => setSweetnessPreference(sweetnessPreference === item.val ? '' : item.val)}
+                      >
+                        <span className="option-icon">{item.icon}</span>
+                        <span className="option-text">
+                          <span className="option-title">{item.val} Sweetness</span>
+                          <span className="option-desc">{item.desc}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="quiz-actions quiz-actions-split">
+                    <button
+                      type="button"
+                      id="back-6"
+                      className="btn-outline"
+                      onClick={() => setStep(5)}
+                    >
+                      Back
+                    </button>
+                    <div className="quiz-actions-group">
+                      <button
+                        type="button"
+                        id="skip-6"
+                        className="btn-skip"
+                        onClick={() => {
+                          setSweetnessPreference('');
+                          setStep(7);
+                        }}
+                      >
+                        Skip
+                      </button>
+                      <button
+                        type="button"
+                        id="next-6"
+                        className="btn-primary"
+                        onClick={() => setStep(7)}
+                      >
+                        Continue &rarr;
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 7 && (
+                <div id="step-7" className="quiz-step">
+                  <h2 className="quiz-question">Any dietary requirements?</h2>
+                  <p className="quiz-step-desc">We'll strictly match chocolates verified for these lifestyles.</p>
+                  <div className="options-grid options-grid-2">
+                    {[
+                      { val: 'Vegetarian', icon: '🌱', desc: 'Pure vegetarian-certified cocoa recipes' },
+                      { val: 'Vegan', icon: '🌿', desc: '100% plant-based, strictly dairy-free & egg-free' },
+                      { val: 'Gluten-Free', icon: '🌾', desc: 'Free of barley, wheat, or gluten traces' },
+                      { val: 'Dairy-Free', icon: '🥛', desc: 'Strictly zero milk, cream, or dairy allergens' },
+                      { val: 'Sugar-Free', icon: '✨', desc: 'Zero added cane sugar, keto & diabetic friendly' },
+                      { val: 'Keto-Friendly', icon: '🥑', desc: 'High cocoa butter fats with minimal net carbs' },
+                      { val: 'Nut-Free', icon: '🥜', desc: 'Recipe and facility excluded from nut processing' }
+                    ].map((item) => {
+                      const isSelected = dietaryRequirements.includes(item.val);
+                      return (
+                        <button
+                          key={item.val}
+                          type="button"
+                          className={`option-card ${isSelected ? 'selected' : ''}`}
+                          data-step="7"
+                          data-value={item.val}
+                          onClick={() => toggleItem(dietaryRequirements, setDietaryRequirements, item.val)}
+                        >
+                          <span className="option-icon">{item.icon}</span>
+                          <span className="option-text">
+                            <span className="option-title">{item.val}</span>
+                            <span className="option-desc">{item.desc}</span>
+                          </span>
+                          <span className="option-checkbox">{isSelected ? '✓' : ''}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="quiz-actions quiz-actions-split">
+                    <button
+                      type="button"
+                      id="back-7"
+                      className="btn-outline"
+                      onClick={() => setStep(6)}
+                    >
+                      Back
+                    </button>
+                    <div className="quiz-actions-group">
+                      <button
+                        type="button"
+                        id="skip-7"
+                        className="btn-skip"
+                        onClick={() => {
+                          setDietaryRequirements([]);
+                          setStep(8);
+                        }}
+                      >
+                        Skip
+                      </button>
+                      <button
+                        type="button"
+                        id="next-7"
+                        className="btn-primary"
+                        onClick={() => setStep(8)}
+                      >
+                        Continue &rarr;
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 8 && (
+                <div id="step-8" className="quiz-step">
+                  <h2 className="quiz-question">Any allergens to avoid?</h2>
+                  <p className="quiz-step-desc">We will strictly exclude recipes containing any of these ingredients.</p>
+                  <div className="options-grid options-grid-2">
+                    {[
+                      { val: 'Nuts', icon: '🌰', desc: 'Tree nuts: hazelnuts, almonds, cashews, pistachios' },
+                      { val: 'Milk', icon: '🥛', desc: 'Dairy: milk powder, cream, butter' },
+                      { val: 'Gluten', icon: '🌾', desc: 'Wheat, barley malt extract, crisped pearls' },
+                      { val: 'Soy', icon: '🫘', desc: 'Soy lecithin emulsifiers' },
+                      { val: 'Egg', icon: '🥚', desc: 'Baked meringue & egg whites' },
+                      { val: 'Sesame', icon: '🌱', desc: 'Sesame seeds and paste' }
+                    ].map((item) => {
+                      const isSelected = allergensToAvoid.includes(item.val);
+                      return (
+                        <button
+                          key={item.val}
+                          type="button"
+                          className={`option-card ${isSelected ? 'selected' : ''}`}
+                          data-step="8"
+                          data-value={item.val}
+                          onClick={() => toggleItem(allergensToAvoid, setAllergensToAvoid, item.val)}
+                        >
+                          <span className="option-icon">{item.icon}</span>
+                          <span className="option-text">
+                            <span className="option-title">Avoid {item.val}</span>
+                            <span className="option-desc">{item.desc}</span>
+                          </span>
+                          <span className="option-checkbox">{isSelected ? '✓' : ''}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="quiz-actions quiz-actions-split">
+                    <button
+                      type="button"
+                      id="back-8"
+                      className="btn-outline"
+                      onClick={() => setStep(7)}
+                    >
+                      Back
+                    </button>
+                    <div className="quiz-actions-group">
+                      <button
+                        type="button"
+                        id="skip-8"
+                        className="btn-skip"
+                        onClick={() => {
+                          setAllergensToAvoid([]);
+                          setStep(9);
+                        }}
+                      >
+                        Skip
+                      </button>
+                      <button
+                        type="button"
+                        id="next-8"
+                        className="btn-primary"
+                        onClick={() => setStep(9)}
+                      >
+                        Continue &rarr;
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 9 && (
+                <div id="step-9" className="quiz-step">
+                  <h2 className="quiz-question">What's your budget range?</h2>
+                  <p className="quiz-step-desc">Cocora artisanal chocolates range between ₹220 and ₹460.</p>
+
+                  <div className="budget-presets">
+                    {budgetPresets.map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        className={`budget-preset-btn ${isPresetActive(preset) ? 'active' : ''}`}
+                        onClick={() => applyBudgetPreset(preset)}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="budget-grid">
+                    <div className="budget-group">
+                      <label htmlFor="budget-min" className="budget-label">Minimum Price (₹)</label>
+                      <div className="budget-input-wrapper">
+                        <span className="budget-currency">₹</span>
+                        <input
+                          type="number"
+                          id="budget-min"
+                          className={`budget-input ${budgetError ? 'input-error' : ''}`}
+                          placeholder="e.g. 250"
+                          min="0"
+                          step="10"
+                          value={budgetMin}
+                          onChange={(e) => setBudgetMin(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="budget-group">
+                      <label htmlFor="budget-max" className="budget-label">Maximum Price (₹)</label>
+                      <div className="budget-input-wrapper">
+                        <span className="budget-currency">₹</span>
+                        <input
+                          type="number"
+                          id="budget-max"
+                          className={`budget-input ${budgetError ? 'input-error' : ''}`}
+                          placeholder="e.g. 350"
+                          min="0"
+                          step="10"
+                          value={budgetMax}
+                          onChange={(e) => setBudgetMax(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {budgetError && (
+                    <p className="budget-error-msg">{budgetError}</p>
+                  )}
+
+                  <div className="quiz-actions quiz-actions-split" style={{ marginTop: '2rem' }}>
+                    <button
+                      type="button"
+                      id="back-9"
+                      className="btn-outline"
+                      onClick={() => setStep(8)}
+                    >
+                      Back
+                    </button>
+                    <div className="quiz-actions-group">
+                      <button
+                        type="button"
+                        id="skip-9"
+                        className="btn-skip"
+                        onClick={() => {
+                          setBudgetMin('');
+                          setBudgetMax('');
+                          handleFinish({ skipBudget: true });
+                        }}
+                      >
+                        Skip
+                      </button>
+                      <button
+                        type="button"
+                        id="finish-btn"
+                        className="btn-primary"
+                        disabled={!isBudgetValid || loading}
+                        onClick={() => handleFinish()}
+                      >
+                        Find my gifts &rarr;
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -282,6 +787,32 @@ export default function GiftFinder() {
                 <h2 className="result-title">Chocolates tailored to your gift</h2>
               </div>
 
+              {appliedCriteria && (
+                <div className="criteria-summary">
+                  {appliedCriteria.recipient && <span className="criteria-pill">Recipient: {appliedCriteria.recipient}</span>}
+                  {appliedCriteria.occasion && <span className="criteria-pill">Occasion: {appliedCriteria.occasion}</span>}
+                  {appliedCriteria.mood && <span className="criteria-pill">Mood: {appliedCriteria.mood}</span>}
+                  {appliedCriteria.sweetnessPreference && <span className="criteria-pill">Sweetness: {appliedCriteria.sweetnessPreference}</span>}
+                  {appliedCriteria.preferredChocolateTypes && appliedCriteria.preferredChocolateTypes.length > 0 && (
+                    <span className="criteria-pill">Types: {appliedCriteria.preferredChocolateTypes.join(', ')}</span>
+                  )}
+                  {appliedCriteria.preferredFlavours && appliedCriteria.preferredFlavours.length > 0 && (
+                    <span className="criteria-pill">Flavours: {appliedCriteria.preferredFlavours.join(', ')}</span>
+                  )}
+                  {appliedCriteria.dietaryRequirements && appliedCriteria.dietaryRequirements.length > 0 && (
+                    <span className="criteria-pill">Dietary: {appliedCriteria.dietaryRequirements.join(', ')}</span>
+                  )}
+                  {appliedCriteria.allergensToAvoid && appliedCriteria.allergensToAvoid.length > 0 && (
+                    <span className="criteria-pill">Excludes: {appliedCriteria.allergensToAvoid.join(', ')}</span>
+                  )}
+                  {(appliedCriteria.budgetMin !== undefined || appliedCriteria.budgetMax !== undefined) && (
+                    <span className="criteria-pill">
+                      Budget: {appliedCriteria.budgetMin !== undefined ? `₹${appliedCriteria.budgetMin}` : '₹0'} – {appliedCriteria.budgetMax !== undefined ? `₹${appliedCriteria.budgetMax}` : 'No max'}
+                    </span>
+                  )}
+                </div>
+              )}
+
               {addedNotice && (
                 <div className="auth-notice" style={{ marginBottom: '2rem', textAlign: 'center' }}>
                   {addedNotice}
@@ -291,10 +822,10 @@ export default function GiftFinder() {
               {loading ? (
                 <div className="finder-intro" style={{ padding: '3rem' }}>
                   <p className="section-title" style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>
-                    Searching 60 artisanal chocolates...
+                    Searching artisanal chocolates...
                   </p>
                   <p className="intro-desc" style={{ marginBottom: 0 }}>
-                    Matching recipient occasion, cocoa percentage, and flavour notes against active kitchen stock.
+                    Matching recipient occasion, flavour notes, sweetness, dietary standards, and budget against active kitchen stock.
                   </p>
                 </div>
               ) : error ? (
@@ -302,9 +833,14 @@ export default function GiftFinder() {
                   <p className="section-title" style={{ fontSize: '1.5rem', color: '#E06C75', marginBottom: '1rem' }}>
                     {error}
                   </p>
-                  <button type="button" className="btn-primary" onClick={resetQuiz}>
-                    Try Again
-                  </button>
+                  <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                    <button type="button" className="btn-primary" onClick={adjustPreferences}>
+                      Adjust Preferences
+                    </button>
+                    <button type="button" className="btn-outline" onClick={resetQuiz}>
+                      Start Over
+                    </button>
+                  </div>
                 </div>
               ) : recommendations.length === 0 ? (
                 <div className="finder-intro" style={{ padding: '3rem' }}>
@@ -318,9 +854,14 @@ export default function GiftFinder() {
                       ))}
                     </ul>
                   )}
-                  <button type="button" className="btn-primary" onClick={resetQuiz}>
-                    Adjust Preferences
-                  </button>
+                  <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                    <button type="button" className="btn-primary" onClick={adjustPreferences}>
+                      Adjust Preferences
+                    </button>
+                    <button type="button" className="btn-outline" onClick={resetQuiz}>
+                      Start Over
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -387,14 +928,22 @@ export default function GiftFinder() {
                     </div>
                   ))}
 
-                  <div className="result-reset-wrapper" style={{ textAlign: 'center', marginTop: '1rem' }}>
+                  <div className="result-reset-wrapper" style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', marginTop: '1rem' }}>
+                    <button
+                      type="button"
+                      id="adjust-btn"
+                      className="try-again-btn"
+                      onClick={adjustPreferences}
+                    >
+                      Adjust preferences
+                    </button>
                     <button
                       type="button"
                       id="try-again-btn"
                       className="try-again-btn"
                       onClick={resetQuiz}
                     >
-                      Not quite right? Try again
+                      Start new quiz
                     </button>
                   </div>
                 </div>
