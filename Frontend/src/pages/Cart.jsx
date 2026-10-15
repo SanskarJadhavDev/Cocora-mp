@@ -11,8 +11,8 @@ export default function Cart({ cart, setCart }) {
     city: '',
     pincode: ''
   })
-  const [checkoutError, setCheckoutError] = useState('')
-  const [isOrderPlaced, setIsOrderPlaced] = useState(false)
+  const [errors, setErrors] = useState({})
+  const [checkoutNotice, setCheckoutNotice] = useState('')
 
   const increaseQuantity = (index) => {
     const updated = [...cart]
@@ -50,33 +50,68 @@ export default function Cart({ cart, setCart }) {
       ...prev,
       [name]: value
     }))
+    if (errors[name]) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: ''
+      }))
+    }
+  }
+
+  const validate = () => {
+    const newErrors = {}
+    const emailRegex = /^\S+@\S+\.\S+$/
+    const phoneClean = formData.phone.replace(/[\s-]/g, '')
+
+    if (!formData.name.trim()) {
+      newErrors.name = 'Full name is required'
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email address is required'
+    } else if (!emailRegex.test(formData.email.trim())) {
+      newErrors.email = 'Please enter a valid email address'
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required'
+    } else if (!/^\d{10}$/.test(phoneClean)) {
+      newErrors.phone = 'Please enter a valid 10-digit phone number'
+    }
+
+    if (!formData.address.trim()) {
+      newErrors.address = 'Delivery address is required'
+    }
+
+    if (!formData.city.trim()) {
+      newErrors.city = 'City is required'
+    }
+
+    if (!formData.pincode.trim()) {
+      newErrors.pincode = 'PIN code is required'
+    } else if (!/^\d{6}$/.test(formData.pincode.trim())) {
+      newErrors.pincode = 'Please enter a valid 6-digit PIN code'
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    setCheckoutNotice('')
 
-    const { name, email, phone, address, city, pincode } = formData
-    if (
-      name.trim() === '' ||
-      email.trim() === '' ||
-      phone.trim() === '' ||
-      address.trim() === '' ||
-      city.trim() === '' ||
-      pincode.trim() === ''
-    ) {
-      setCheckoutError('Please fill in all required fields.')
+    if (!validate()) {
       return
     }
 
-    setCheckoutError('')
-    localStorage.removeItem('cocoraCart')
-    setCart([])
-    setIsOrderPlaced(true)
+    setCheckoutNotice('Checkout details validated. Ready for order API integration.')
   }
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const delivery = cart.length === 0 ? 0 : subtotal >= 1000 ? 0 : 50
   const total = subtotal + delivery
+  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
 
   return (
     <div>
@@ -85,135 +120,202 @@ export default function Cart({ cart, setCart }) {
           <p className="section-tag">YOUR CART</p>
           <h1 className="section-title">Your Cocora Box</h1>
 
-          {isOrderPlaced ? (
-            <div id="order-confirmation" className="tray-card">
-              <h2 className="section-title">Order placed successfully!</h2>
-              <p className="build-text">Thank you for choosing Cocora.</p>
-              <Link to="/collection" className="btn-primary">Back to Collection</Link>
-            </div>
-          ) : cart.length === 0 ? (
+          {cart.length === 0 ? (
             <div id="empty-cart-view" className="tray-card">
               <p className="build-text">Your Cocora box is empty.</p>
               <Link to="/collection" className="btn-primary">Explore Collection</Link>
             </div>
           ) : (
-            <div id="cart-content-view">
-              <div className="tray-card">
-                <h2 className="tray-name">Selected Items</h2>
-                <div id="cart-items-list">
-                  {cart.map((item, index) => (
-                    <div key={item.id + '-' + index} className="product-card">
-                      <div className="product-info">
-                        <h3 className="product-name">{item.name}</h3>
-                        {item.chocolates && item.chocolates.length > 0 && (
-                          <p className="product-desc">Includes: {item.chocolates.join(', ')}</p>
-                        )}
-                        <p className="product-price">₹{item.price}</p>
-                        <div className="hero-buttons">
+            <div id="cart-content-view" className="cart-layout">
+              <div className="cart-main-col">
+                <div className="tray-card">
+                  <h2 className="tray-name">Selected Items</h2>
+                  <p className="build-text">Chocolates tempered in Bandra West, packed for freshness.</p>
+                  <div id="cart-items-list" className="cart-items-container">
+                    {cart.map((item, index) => (
+                      <div key={item.id + '-' + index} className="cart-item-card product-card">
+                        <div className="cart-item-header">
+                          <div>
+                            <h3 className="cart-item-title product-name">{item.name}</h3>
+                            {item.chocolates && item.chocolates.length > 0 && (
+                              <p className="cart-item-chocolates product-desc">
+                                Includes: {item.chocolates.join(', ')}
+                              </p>
+                            )}
+                          </div>
+                          <p className="cart-item-price product-price">₹{item.price}</p>
+                        </div>
+                        <div className="cart-item-footer">
+                          <div className="cart-controls-row hero-buttons">
+                            <button
+                              type="button"
+                              className="btn-outline qty-control-btn"
+                              onClick={() => decreaseQuantity(index)}
+                              aria-label="Decrease quantity"
+                            >
+                              -
+                            </button>
+                            <span className="btn-outline qty-badge">{item.quantity}</span>
+                            <button
+                              type="button"
+                              className="btn-outline qty-control-btn"
+                              onClick={() => increaseQuantity(index)}
+                              aria-label="Increase quantity"
+                            >
+                              +
+                            </button>
+                          </div>
                           <button
                             type="button"
-                            className="btn-outline"
-                            onClick={() => decreaseQuantity(index)}
-                          >
-                            -
-                          </button>
-                          <span className="btn-outline">{item.quantity}</span>
-                          <button
-                            type="button"
-                            className="btn-outline"
-                            onClick={() => increaseQuantity(index)}
-                          >
-                            +
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-outline"
+                            className="btn-outline remove-item-btn"
                             onClick={() => removeItem(index)}
                           >
                             Remove
                           </button>
                         </div>
                       </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="tray-card">
+                  <h2 className="tray-name">Checkout Details</h2>
+                  <p className="build-text">Provide your delivery location for refrigerated delivery.</p>
+
+                  {checkoutNotice && (
+                    <div className="checkout-ready-notice">
+                      {checkoutNotice}
                     </div>
-                  ))}
+                  )}
+
+                  <form id="checkout-form" onSubmit={handleSubmit} noValidate>
+                    <div className="checkout-fields-grid">
+                      <div className="checkout-field field-span-2">
+                        <label htmlFor="name" className="checkout-label">Full Name</label>
+                        <input
+                          type="text"
+                          id="name"
+                          name="name"
+                          className={`checkout-input ${errors.name ? 'checkout-input-error' : ''}`}
+                          placeholder="Aditya Sharma"
+                          value={formData.name}
+                          onChange={handleInputChange}
+                        />
+                        {errors.name && <span className="field-error-text">{errors.name}</span>}
+                      </div>
+
+                      <div className="checkout-field">
+                        <label htmlFor="email" className="checkout-label">Email Address</label>
+                        <input
+                          type="email"
+                          id="email"
+                          name="email"
+                          className={`checkout-input ${errors.email ? 'checkout-input-error' : ''}`}
+                          placeholder="aditya@example.com"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                        />
+                        {errors.email && <span className="field-error-text">{errors.email}</span>}
+                      </div>
+
+                      <div className="checkout-field">
+                        <label htmlFor="phone" className="checkout-label">Phone Number</label>
+                        <input
+                          type="tel"
+                          id="phone"
+                          name="phone"
+                          className={`checkout-input ${errors.phone ? 'checkout-input-error' : ''}`}
+                          placeholder="9876543210"
+                          value={formData.phone}
+                          onChange={handleInputChange}
+                        />
+                        {errors.phone && <span className="field-error-text">{errors.phone}</span>}
+                      </div>
+
+                      <div className="checkout-field field-span-2">
+                        <label htmlFor="address" className="checkout-label">Delivery Address</label>
+                        <input
+                          type="text"
+                          id="address"
+                          name="address"
+                          className={`checkout-input ${errors.address ? 'checkout-input-error' : ''}`}
+                          placeholder="Flat 402, Sea Green Apts, Perry Cross Rd"
+                          value={formData.address}
+                          onChange={handleInputChange}
+                        />
+                        {errors.address && <span className="field-error-text">{errors.address}</span>}
+                      </div>
+
+                      <div className="checkout-field">
+                        <label htmlFor="city" className="checkout-label">City</label>
+                        <input
+                          type="text"
+                          id="city"
+                          name="city"
+                          className={`checkout-input ${errors.city ? 'checkout-input-error' : ''}`}
+                          placeholder="Mumbai"
+                          value={formData.city}
+                          onChange={handleInputChange}
+                        />
+                        {errors.city && <span className="field-error-text">{errors.city}</span>}
+                      </div>
+
+                      <div className="checkout-field">
+                        <label htmlFor="pincode" className="checkout-label">PIN Code</label>
+                        <input
+                          type="text"
+                          id="pincode"
+                          name="pincode"
+                          className={`checkout-input ${errors.pincode ? 'checkout-input-error' : ''}`}
+                          placeholder="400050"
+                          value={formData.pincode}
+                          onChange={handleInputChange}
+                        />
+                        {errors.pincode && <span className="field-error-text">{errors.pincode}</span>}
+                      </div>
+                    </div>
+
+                    <p id="checkout-error" className="section-tag">
+                      {Object.keys(errors).length > 0 && 'Please correct the highlighted fields above.'}
+                    </p>
+
+                    <button type="submit" className="btn-primary checkout-submit-btn">
+                      Place Order
+                    </button>
+                  </form>
                 </div>
               </div>
 
-              <div className="tray-card">
+              <div className="order-summary-card">
                 <h2 className="tray-name">Order Summary</h2>
-                <p className="build-text">Subtotal: <span id="subtotal-display">₹{subtotal}</span></p>
-                <p className="build-text">Delivery: <span id="delivery-display">₹{delivery}</span></p>
-                <p className="tray-price">Total: <span id="total-display">₹{total}</span></p>
-              </div>
+                <p className="order-summary-subtitle">{totalItems} {totalItems === 1 ? 'item' : 'items'} in your box</p>
 
-              <div className="tray-card">
-                <h2 className="tray-name">Checkout Details</h2>
-                <form id="checkout-form" onSubmit={handleSubmit}>
-                  <div>
-                    <label htmlFor="name">Name</label><br />
-                    <input
-                      type="text"
-                      id="name"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                    />
+                <div className="order-summary-rows">
+                  <div className="summary-row">
+                    <span>Subtotal</span>
+                    <span id="subtotal-display">₹{subtotal}</span>
                   </div>
-                  <div>
-                    <label htmlFor="email">Email</label><br />
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                    />
+
+                  <div className="summary-row">
+                    <span>Delivery</span>
+                    <span id="delivery-display" className={delivery === 0 ? 'summary-badge-free' : ''}>
+                      {delivery === 0 ? 'FREE' : `₹${delivery}`}
+                    </span>
                   </div>
-                  <div>
-                    <label htmlFor="phone">Phone</label><br />
-                    <input
-                      type="tel"
-                      id="phone"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                    />
+
+                  <div className="summary-divider"></div>
+
+                  <div className="summary-total-row">
+                    <span className="summary-total-label">Total Amount</span>
+                    <span id="total-display" className="summary-total-amount">₹{total}</span>
                   </div>
-                  <div>
-                    <label htmlFor="address">Delivery Address</label><br />
-                    <input
-                      type="text"
-                      id="address"
-                      name="address"
-                      value={formData.address}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="city">City</label><br />
-                    <input
-                      type="text"
-                      id="city"
-                      name="city"
-                      value={formData.city}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="pincode">PIN Code</label><br />
-                    <input
-                      type="text"
-                      id="pincode"
-                      name="pincode"
-                      value={formData.pincode}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div>
-                    <p id="checkout-error" className="section-tag">{checkoutError}</p>
-                    <button type="submit" className="btn-primary">Place Order</button>
-                  </div>
-                </form>
+                </div>
+
+                <div className="summary-perks">
+                  <p>• Dispatched from Bandra West within 24 hours</p>
+                  <p>• Temperature-controlled cold packaging included</p>
+                  <p>• Hand-written card with every order</p>
+                </div>
               </div>
             </div>
           )}

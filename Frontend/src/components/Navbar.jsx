@@ -13,7 +13,10 @@ export default function Navbar({ cartCount }) {
           <Link to="/build" className={`nav-link ${location.pathname === '/build' ? 'active' : ''}`}>Build a box</Link>
           <Link to="/gift-finder" className={`nav-link ${location.pathname === '/gift-finder' ? 'active' : ''}`}>Gift Finder</Link>
         </nav>
-        <Link to="/cart" className="box-counter">Cart {cartCount}</Link>
+        <div className="navbar-actions">
+          <Link to="/login" className={`nav-link ${location.pathname === '/login' ? 'active' : ''}`}>Login</Link>
+          <Link to="/cart" className="box-counter">Cart {cartCount}</Link>
+        </div>
       </div>
     </header>
   )

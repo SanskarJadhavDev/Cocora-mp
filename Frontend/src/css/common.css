@@ -66,6 +66,12 @@ button {
   color: #D4AF37;
 }
 
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
 .box-counter {
   background-color: #D4AF37;
   color: #2E1A4F;

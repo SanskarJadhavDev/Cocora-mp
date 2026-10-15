@@ -6,6 +6,7 @@ import Collection from './pages/Collection'
 import Build from './pages/Build'
 import GiftFinder from './pages/GiftFinder'
 import Cart from './pages/Cart'
+import Login from './pages/Login'
 import './css/common.css'
 
 export default function App() {
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="/build" element={<Build cart={cart} setCart={setCart} />} />
         <Route path="/gift-finder" element={<GiftFinder />} />
         <Route path="/cart" element={<Cart cart={cart} setCart={setCart} />} />
+        <Route path="/login" element={<Login />} />
       </Routes>
     </BrowserRouter>
   )
