@@ -349,13 +349,23 @@ export default function AdminDashboard() {
 
   // Order status update with loading indicator
   const handleOrderStatusChange = async (orderId, newStatus) => {
+    const currentOrder = orders.find((o) => o._id === orderId);
+    if (currentOrder && currentOrder.status === newStatus) {
+      return;
+    }
     setUpdatingStatusMap((prev) => ({ ...prev, [orderId]: true }));
     try {
-      await orderApi.updateOrderStatus(orderId, newStatus);
-      setFeedbackNotice(`Order status updated to "${newStatus}".`);
-      await fetchAdminData();
+      const res = await orderApi.updateOrderStatus(orderId, newStatus);
+      if (res && res.data) {
+        setFeedbackNotice(`Order status updated to "${res.data.status}".`);
+        setOrders((prev) =>
+          prev.map((o) => (o._id === orderId ? res.data : o))
+        );
+        await fetchAdminData();
+      }
     } catch (err) {
       setFeedbackNotice(err.message || 'Failed to update order status.');
+      await fetchAdminData();
     } finally {
       setUpdatingStatusMap((prev) => ({ ...prev, [orderId]: false }));
     }

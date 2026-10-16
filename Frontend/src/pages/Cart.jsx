@@ -226,7 +226,6 @@ export default function Cart() {
               <p style={{ color: 'var(--ivory-60)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
                 Track your chocolate orders and delivery status.
               </p>
-            </div>
 
             {loadingOrders ? (
               <div className="orders-list">
@@ -261,7 +260,7 @@ export default function Cart() {
                       </span>
                     </div>
                     <p className="order-hist-items">
-                      {ord.items?.map((i) => `${i.productName || 'Chocolate'} ×${i.quantity}`).join(', ')}
+                      {ord.items?.map((i) => `${i.name || i.productName || i.product?.name || 'Chocolate'} ×${i.quantity}`).join(', ')}
                     </p>
                     <div className="order-hist-footer">
                       <span className="order-hist-total">₹{ord.totalAmount}</span>
