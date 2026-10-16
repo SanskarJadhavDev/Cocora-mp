@@ -60,8 +60,22 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   await connectDB();
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`Cocora API server running on port ${PORT}`);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`\n[Port Error] Port ${PORT} is already in use.`);
+      if (PORT == 5000) {
+        console.error('Note: On macOS, port 5000 is used by AirPlay Receiver.');
+        console.error('Switch to port 5001 or disable AirPlay Receiver in System Settings.\n');
+      }
+      process.exit(1);
+    } else {
+      console.error('Server error:', err);
+      process.exit(1);
+    }
   });
 };
 

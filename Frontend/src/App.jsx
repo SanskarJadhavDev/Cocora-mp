@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import Navbar from './components/Navbar';
+import SiteSparkles from './components/effects/SiteSparkles';
 import Home from './pages/Home';
 import Collection from './pages/Collection';
 import Build from './pages/Build';
@@ -19,6 +20,7 @@ function AppContent() {
 
   return (
     <>
+      <SiteSparkles />
       {!isAdmin && <Navbar />}
       <Routes>
         <Route path="/" element={<Home />} />
