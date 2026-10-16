@@ -226,6 +226,7 @@ export default function Cart() {
               <p style={{ color: 'var(--ivory-60)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
                 Track your chocolate orders and delivery status.
               </p>
+            </div>
 
             {loadingOrders ? (
               <div className="orders-list">
