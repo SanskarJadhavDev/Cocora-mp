@@ -14,6 +14,37 @@ const CATEGORIES = [
   'Indian & Experimental'
 ];
 
+const formatOrderItem = (item) => {
+  const name =
+    (typeof item === 'string' && item.trim()) ||
+    item?.name ||
+    item?.productName ||
+    item?.title ||
+    item?.product?.name ||
+    item?.product?.title ||
+    'Chocolate item';
+  const qty = item?.quantity ?? item?.qty ?? 1;
+  return `${name} x${qty}`;
+};
+
+const formatOrderItemsSummary = (order) => {
+  const items = Array.isArray(order?.items) ? order.items : [];
+  if (items.length === 0) {
+    if (order?.orderType === 'customBox' || order?.orderType === 'custom_box') {
+      const size = order?.customBoxDetails?.traySize || order?.customBoxDetails?.totalChocolates || 12;
+      return `Custom Box (${size} pcs)`;
+    }
+    return 'No items';
+  }
+
+  const itemsList = items.map(formatOrderItem).join(', ');
+  if (order?.orderType === 'customBox' || order?.orderType === 'custom_box') {
+    const size = order?.customBoxDetails?.traySize || order?.customBoxDetails?.totalChocolates || items.length;
+    return `Custom Box (${size} pcs): ${itemsList}`;
+  }
+  return itemsList;
+};
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { user, isAuthenticated, isAdmin, loading: authLoading, logout } = useAuth();
@@ -209,12 +240,22 @@ export default function AdminDashboard() {
   };
 
   const handleOrderStatusChange = async (orderId, newStatus) => {
+    const currentOrder = orders.find((o) => o._id === orderId);
+    if (currentOrder && currentOrder.status === newStatus) {
+      return;
+    }
     try {
-      await orderApi.updateOrderStatus(orderId, newStatus);
-      setFeedbackNotice(`Order status successfully updated to "${newStatus}".`);
-      await fetchAdminData();
+      const res = await orderApi.updateOrderStatus(orderId, newStatus);
+      if (res && res.data) {
+        setFeedbackNotice(`Order status successfully updated to "${res.data.status}".`);
+        setOrders((prev) =>
+          prev.map((o) => (o._id === orderId ? res.data : o))
+        );
+        await fetchAdminData();
+      }
     } catch (err) {
       setFeedbackNotice(err.message || 'Failed to update order status.');
+      await fetchAdminData();
     }
   };
 
@@ -356,7 +397,7 @@ export default function AdminDashboard() {
         </header>
 
         {feedbackNotice && (
-          <div className="admin-notice" style={{ margin: '1.5rem 2rem 0' }}>
+          <div className="admin-notice">
             <span>{feedbackNotice}</span>
             <button
               type="button"
@@ -369,7 +410,7 @@ export default function AdminDashboard() {
         )}
 
         {loadingData && (
-          <p className="build-text" style={{ padding: '1rem 2rem' }}>
+          <p className="build-text admin-loading-text">
             Synchronizing with MongoDB Atlas...
           </p>
         )}
@@ -441,7 +482,7 @@ export default function AdminDashboard() {
                         {orders.slice(0, 5).map((order) => (
                           <tr key={order._id}>
                             <td><strong>{order.orderNumber}</strong></td>
-                            <td>{order.shippingAddress?.name || order.customBoxDetails?.customerDetails?.name || 'Customer'}</td>
+                            <td>{order.customerDetails?.name || order.shippingAddress?.name || order.customBoxDetails?.customerDetails?.name || order.user?.name || 'Customer'}</td>
                             <td>₹{order.totalAmount}</td>
                             <td>
                               <span className={`status-badge ${getStatusBadgeClass(order.status)}`}>
@@ -452,7 +493,7 @@ export default function AdminDashboard() {
                         ))}
                         {orders.length === 0 && (
                           <tr>
-                            <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>
+                            <td colSpan="4" className="empty-table-cell">
                               No orders placed yet.
                             </td>
                           </tr>
@@ -528,24 +569,24 @@ export default function AdminDashboard() {
                             <img
                               src={p.image}
                               alt={p.name}
-                              style={{ width: '45px', height: '45px', objectFit: 'cover', borderRadius: '0.35rem' }}
+                              className="table-product-img"
                             />
                           </td>
                           <td>
                             <strong>{p.name}</strong>
-                            <p style={{ fontSize: '0.75rem', color: 'rgba(245, 237, 224, 0.6)', marginTop: '0.2rem' }}>
+                            <p className="table-product-desc">
                               {p.description.slice(0, 60)}...
                             </p>
                           </td>
                           <td>{p.category}</td>
                           <td>₹{p.price}</td>
                           <td>
-                            <span style={{ color: p.stock < 10 ? '#E06C75' : '#50C878', fontWeight: 600 }}>
+                            <span className={p.stock < 10 ? 'stock-low' : 'stock-normal'}>
                               {p.stock}
                             </span>
                           </td>
                           <td>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <div className="table-actions-cell">
                               <button
                                 type="button"
                                 className="action-btn edit-btn"
@@ -566,7 +607,7 @@ export default function AdminDashboard() {
                       ))}
                       {products.length === 0 && (
                         <tr>
-                          <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>
+                          <td colSpan="6" className="empty-table-cell">
                             No products found in catalogue.
                           </td>
                         </tr>
@@ -598,21 +639,19 @@ export default function AdminDashboard() {
                         <tr key={ord._id}>
                           <td>
                             <strong>{ord.orderNumber}</strong>
-                            <p style={{ fontSize: '0.75rem', color: 'rgba(245, 237, 224, 0.6)' }}>
+                            <p className="order-meta-text">
                               {new Date(ord.createdAt).toLocaleDateString('en-IN')}
                             </p>
                           </td>
                           <td>
-                            <p>{ord.shippingAddress?.name || ord.customBoxDetails?.customerDetails?.name || 'Customer'}</p>
-                            <p style={{ fontSize: '0.75rem', color: 'rgba(245, 237, 224, 0.6)' }}>
-                              {ord.shippingAddress?.city || ord.customBoxDetails?.customerDetails?.city}
+                            <p>{ord.customerDetails?.name || ord.shippingAddress?.name || ord.customBoxDetails?.customerDetails?.name || ord.user?.name || 'Customer'}</p>
+                            <p className="order-meta-text">
+                              {ord.customerDetails?.city || ord.shippingAddress?.city || ord.customBoxDetails?.customerDetails?.city || ''}
                             </p>
                           </td>
                           <td>
-                            <p style={{ fontSize: '0.85rem' }}>
-                              {ord.orderType === 'custom_box'
-                                ? `Custom Box (Tray ${ord.customBoxDetails?.traySize || 12})`
-                                : ord.items?.map((i) => `${i.productName} x${i.quantity}`).join(', ')}
+                            <p className="order-items-text">
+                              {formatOrderItemsSummary(ord)}
                             </p>
                           </td>
                           <td><strong>₹{ord.totalAmount}</strong></td>
@@ -639,7 +678,7 @@ export default function AdminDashboard() {
                       ))}
                       {orders.length === 0 && (
                         <tr>
-                          <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>
+                          <td colSpan="6" className="empty-table-cell">
                             No orders found in database.
                           </td>
                         </tr>

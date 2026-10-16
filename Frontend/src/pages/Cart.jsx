@@ -272,7 +272,7 @@ export default function Cart() {
                             })}
                           </h3>
                           <p className="product-desc">
-                            {ord.items && ord.items.map((i) => `${i.productName || 'Chocolate'} x${i.quantity}`).join(', ')}
+                            {ord.items && ord.items.map((i) => `${i.name || i.productName || i.product?.name || 'Chocolate item'} x${i.quantity}`).join(', ')}
                           </p>
                         </div>
                         <div style={{ textAlign: 'right' }}>

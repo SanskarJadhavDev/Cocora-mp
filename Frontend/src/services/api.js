@@ -162,7 +162,7 @@ export const orderApi = {
   getMyOrders: () => request('/orders/my-orders', { method: 'GET' }),
   getOrderById: (id) => request(`/orders/${id}`, { method: 'GET' }),
   getAllOrders: () => request('/orders', { method: 'GET' }),
-  updateOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PUT', body: { status } })
+  updateOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PATCH', body: { status } })
 };
 
 export const boxApi = {
