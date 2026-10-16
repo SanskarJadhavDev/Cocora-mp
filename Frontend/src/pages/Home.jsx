@@ -491,11 +491,15 @@ export default function Home() {
         <div className="brand-story-inner">
           <div className="brand-story-image">
             <img
-              src="https://images.unsplash.com/photo-1607920592519-bab2a80efd77?w=800&q=80"
-              alt="Cocoa beans and dark chocolate slabs on a marble surface"
+              src="/images/brand-story-chocolate.jpg"
+              alt="Artisanal dark chocolate shards handcrafted from single-origin Idukki cocoa"
               loading="lazy"
               width="800"
               height="960"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = 'https://images.unsplash.com/photo-1511381939415-e44015466834?w=800&q=80';
+              }}
             />
             <blockquote className="brand-story-quote">
               "From the Western Ghats to your box."
