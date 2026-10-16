@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { productApi } from '../services/api';
 import { useCart } from '../context/CartContext';
+import { HERO_STAR_DENSITY } from '../components/effects/SiteSparkles';
 import '../css/home.css';
 
 // GoldDust: lazy-loaded after first paint so headline/CTAs never block
@@ -262,8 +263,8 @@ export default function Home() {
           {starsReady && !reducedMotion && (
             <Suspense fallback={null}>
               <GoldDust
-                count={180}
-                quality={window.innerWidth < 768 ? 0.45 : 0.9}
+                count={Math.round(200 * HERO_STAR_DENSITY)}
+                quality={window.innerWidth < 768 ? 0.6 : 0.9}
                 backgroundColor="#160D22"
                 colors={['#6E43A8', '#E5BB32']}
                 direction="up"

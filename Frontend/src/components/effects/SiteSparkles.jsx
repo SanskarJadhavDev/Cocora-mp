@@ -24,6 +24,10 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 
+/* ── Density Multipliers (Single point of adjustment) ──────────────── */
+export const SPARKLE_DENSITY    = 1.4; // Multiplier (+40% density, yields ~119 count on desktop)
+export const HERO_STAR_DENSITY  = 1.2; // Multiplier (+20% density for hero, yields 240 count)
+
 /* ── Route denylist: keep forms and payment screens clean ────────────── */
 export const SPARKLE_DENYLIST_ROUTES = [
   '/login',
@@ -36,8 +40,8 @@ export const SPARKLE_DENYLIST_ROUTES = [
 
 /* ── Tuned Config Object (Single source of truth) ────────────────────── */
 /**
- * Intent: "little little sparkles", not streaks, not a starfield.
- * Sparse, tiny, slow, softly twinkling, and never competing with text.
+ * Intent: delicate, ambient champagne shimmer — slightly richer density.
+ * Tiny, slow, softly twinkling, and never competing with text.
  */
 export const SITE_SPARKLES_CONFIG = {
   // Colors: violet trail into warm gold head
@@ -52,17 +56,19 @@ export const SITE_SPARKLES_CONFIG = {
   focus:           0.3,       // Soft focus for ambient distribution
   originOffset:    0.3,
 
-  // Sparkle density & timing: sparse, delicate, relaxed
-  count:           72,        // Sparse count (within 60–90 range)
+  // Sparkle density & timing: raised slightly for richer atmosphere (+40%)
+  // Old count: 72 (range 60–90) -> New count: 119 (range 110–130)
+  count:           Math.round(85 * SPARKLE_DENSITY),
   speed:           0.045,     // Very slow, peaceful floating
   speedVariance:   0.7,       // Natural variety in particle velocities
   acceleration:    0.3,       // Gentle upward lift
-  trailLength:     0.15,      // Short subtle trail (within 0.12–0.2 range)
+  trailLength:     0.15,      // Short subtle trail (within 0.12–0.2 range), sparkles NOT streaks
   trailFade:       2.2,       // Fast decay keeps sparkles as tiny specks, not long streaks
   lineWidth:       0.8,       // Hairline delicate trails
 
-  // Geometry & Twinkle
-  starSize:        1.35,      // Tiny sparkles (within 1.2–1.6 range)
+  // Geometry & Twinkle: slightly crisper star head (+0.2px max)
+  // Old starSize: 1.35 -> New starSize: 1.55
+  starSize:        1.55,
   twinkle:         0.6,       // Gentle sinusoidal brightness modulation
   fadeIn:          0.1,       // Quick soft birth
   fadeOut:         0.5,       // Gradual dissolution before reset
@@ -70,7 +76,8 @@ export const SITE_SPARKLES_CONFIG = {
 
   // Visual balance: non-competing with typography
   glow:            0.3,       // Soft aura without neon glare
-  intensity:       0.55,      // Restrained luminance for AA text legibility
+  // Old intensity: 0.55 -> New intensity: 0.70
+  intensity:       0.70,
   grain:           0,         // Clean aesthetic, zero grain noise
   interactive:     false,     // Never intercepts pointer events
   burst:           0,         // Zero click burst
@@ -175,10 +182,8 @@ class SparkleParticle {
         const segAlpha = a * Math.pow(1 - i / this.trail.length, trailFade) * 0.45;
         if (segAlpha <= 0.01) continue;
 
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-        ctx.strokeStyle = trailColor + Math.round(segAlpha * 255).toString(16).padStart(2, '0');
+        const clampedSeg = Math.min(255, Math.max(0, Math.round(segAlpha * 255)));
+        ctx.strokeStyle = trailColor + clampedSeg.toString(16).padStart(2, '0');
         ctx.lineWidth = lineWidth * (1 - (i / this.trail.length) * 0.5);
         ctx.stroke();
       }
@@ -191,7 +196,8 @@ class SparkleParticle {
         this.x, this.y, 0,
         this.x, this.y, glowRadius
       );
-      gradient.addColorStop(0, headColor + Math.round(a * 0.4 * 255).toString(16).padStart(2, '0'));
+      const clampedGlow = Math.min(255, Math.max(0, Math.round(a * 0.4 * 255)));
+      gradient.addColorStop(0, headColor + clampedGlow.toString(16).padStart(2, '0'));
       gradient.addColorStop(1, headColor + '00');
 
       ctx.beginPath();
@@ -201,9 +207,10 @@ class SparkleParticle {
     }
 
     // Core star head
+    const clampedHead = Math.min(255, Math.max(0, Math.round(a * 255)));
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-    ctx.fillStyle = headColor + Math.round(a * 255).toString(16).padStart(2, '0');
+    ctx.fillStyle = headColor + clampedHead.toString(16).padStart(2, '0');
     ctx.fill();
   }
 }
@@ -355,9 +362,12 @@ export default function SiteSparkles() {
     const isLowPower = isMobile || isCoarse || lowCores || lowMem;
     sim.isLowPower = isLowPower;
 
-    // Lower count on low-power devices: target < 5% frame budget
-    const effectiveCount = Math.round(
-      SITE_SPARKLES_CONFIG.count * (isLowPower ? 0.55 : 1)
+    // Soften low-power reduction (quality 0.75 instead of 0.55) with a floor so density never drops below 60% of desktop
+    const desktopCount = SITE_SPARKLES_CONFIG.count;
+    const minFloor = Math.round(desktopCount * 0.6);
+    const effectiveCount = Math.max(
+      minFloor,
+      Math.round(desktopCount * (isLowPower ? 0.75 : 1))
     );
     sim.effectiveCount = effectiveCount;
 
